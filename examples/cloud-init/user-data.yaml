@@ -1,0 +1,33 @@
+#cloud-config
+# NoCloud user-data fed to the Debian generic-cloud image via a
+# second virtio-blk device (the CIDATA ISO built by `task cidata`).
+# Tweaked for cloud-boot's QEMU smoke test: gives us a passwordable
+# `debian` account on the serial console, no SSH key gymnastics.
+
+hostname: cb-cloudinit-ok
+
+users:
+  - default
+  - name: debian
+    groups: [sudo]
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    shell: /bin/bash
+    lock_passwd: false
+    # Modern cloud-init (24+) accepts plain_text_passwd; warnings in
+    # the log are normal. For production, swap to `passwd:` with a
+    # SHA-512 crypt hash (`openssl passwd -6`) or drop in ssh keys.
+    plain_text_passwd: debian
+    ssh_authorized_keys:
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICA2GO+1jRfvlkqQm8LV6ha35NtEA6jB51VONIpSpkL5 david@rstation-021
+
+chpasswd:
+  expire: false
+ssh_pwauth: true
+
+# Capture cloud-init's own state on the serial console so the smoke
+# test can see what ran (and what failed) without an extra journalctl.
+output:
+  all: '| tee -a /var/log/cloud-init-output.log'
+
+runcmd:
+  - [ sh, -c, 'echo "cloud-init done, ready to log in as debian/debian" > /dev/console' ]

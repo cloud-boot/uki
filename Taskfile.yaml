@@ -1,0 +1,801 @@
+# cloud-boot/uki — host-side toolchain that assembles a bootable UKI / ISO
+# from the cloud-boot-init binary (built from ../init) plus a kernel and
+# UEFI stub. Ships a single `cloud-boot` cobra CLI with two top-level
+# subcommands: `build` (UKI/ISO assembly) and `push` (OCI artifact upload).
+#
+# Run `task -l` to list tasks. Variables on the CLI, e.g.
+#   task iso KERNEL=./vmlinuz STUB=./linuxx64.efi.stub PLAN_REF=127.0.0.1:5000/boot/plan:latest
+
+version: '3'
+
+vars:
+  GO: '{{.GO | default "go"}}'
+  ARCH: '{{.ARCH | default "amd64"}}'
+  ISO: '{{.ISO | default "boot.iso"}}'
+
+  # CMDLINE — arch-aware default for the cloud-boot kernel.
+  #
+  # Per-arch console: amd64 q35 → 8250 ttyS0; arm64 virt → PL011 ttyAMA0;
+  # riscv64 virt → SBI 8250-style ttyS0.
+  #
+  # The single-CPU constraint that *would* otherwise live here is baked
+  # directly into each per-arch kernel config (kernel/cloud-amd64.config
+  # etc.) — amd64 + riscv64 do it via `# CONFIG_SMP is not set`, arm64
+  # via CONFIG_CMDLINE="nr_cpus=1" + CMDLINE_EXTEND. See the comments
+  # in those files for the rationale. We keep this Taskfile var focused
+  # on the per-arch console only.
+  CMDLINE:
+    sh: |
+      case "{{.ARCH}}" in
+        arm64) echo "console=ttyAMA0" ;;
+        *)     echo "console=ttyS0"   ;;
+      esac
+
+  INSECURE: '{{.INSECURE | default "1"}}'
+  # VERBOSE=1 strips the automatic 'quiet' injection so the chained kernel
+  # emits its full dmesg-style boot log over the serial console. Default =
+  # quiet boot (errors visible, info chatter suppressed).
+  VERBOSE: '{{.VERBOSE | default ""}}'
+
+  # OCI references
+  PLAN_REF: '{{.PLAN_REF | default ""}}'
+  IMAGE: '{{.IMAGE | default ""}}'
+  TARGET: '{{.TARGET | default ""}}'
+  INDEX_REF: '{{.INDEX_REF | default ""}}'
+
+  # QEMU + firmware (amd64 defaults; override for arm64).
+  QEMU: '{{.QEMU | default "qemu-system-x86_64"}}'
+  QEMU_MACHINE: '{{.QEMU_MACHINE | default "q35,accel=kvm:hvf:tcg"}}'
+  QEMU_CPU: '{{.QEMU_CPU | default ""}}'
+  OVMF_CODE: '{{.OVMF_CODE | default "/usr/share/OVMF/OVMF_CODE.fd"}}'
+  OVMF_VARS: '{{.OVMF_VARS | default "/usr/share/OVMF/OVMF_VARS.fd"}}'
+
+tasks:
+
+  default:
+    desc: Build the cloud-boot host CLI
+    deps: [build]
+
+  tidy:
+    desc: go mod tidy
+    cmds:
+      - '{{.GO}} mod tidy'
+
+  build:
+    desc: Build the cloud-boot host CLI
+    deps: [tidy]
+    cmds:
+      - mkdir -p bin
+      - '{{.GO}} build -trimpath -o bin/cloud-boot ./cmd/cloud-boot'
+    sources:
+      - go.mod
+      - go.sum
+      - cmd/cloud-boot/**/*.go
+      - internal/**/*.go
+    generates:
+      - bin/cloud-boot
+
+  vet:
+    desc: go vet
+    cmds:
+      - '{{.GO}} vet ./...'
+
+  test:
+    desc: Run unit tests
+    cmds:
+      - '{{.GO}} test ./...'
+
+  # ---- Kernel build (docker) -----------------------------------------------
+  #
+  # Each kernel:<arch> task drives `docker build` on the matching
+  # Dockerfile in ../kernel/, extracts the produced kernel binary
+  # (Image / bzImage / vmlinuz.efi — depends on the variant), and drops
+  # it in ../kernel/<artifact>{-<variant>}. The default variant is the
+  # full "cloud" config; pass VARIANT=tiny|disk|lto to pick one of the
+  # alternates.
+  #
+  # The CONFIG_SMP-off / CONFIG_CMDLINE+EXTEND blocks are inside the per
+  # arch config fragments — every kernel rebuilt by these tasks bakes
+  # the single-CPU-stub constraint in. See kernel/cloud-<arch>.config
+  # comments for the rationale.
+
+  kernel:amd64:
+    desc: 'Build the amd64 cloud-boot kernel via Docker + extract bzImage. VARIANT={"",tiny,disk}.'
+    vars:
+      SUFFIX: '{{if .VARIANT}}-{{.VARIANT}}{{end}}'
+      DOCKERFILE: 'Dockerfile.amd64{{.SUFFIX}}'
+      TAG: 'cloud-boot-kernel:amd64{{.SUFFIX}}'
+      ARTIFACT: 'bzImage'
+      OUT: '../kernel/{{.ARTIFACT}}{{.SUFFIX}}'
+      CTR: 'cbk-amd64{{.SUFFIX}}'
+    dir: ../kernel
+    cmds:
+      - docker build -f {{.DOCKERFILE}} -t {{.TAG}} .
+      - docker rm -f {{.CTR}} 2>/dev/null || true
+      - docker create --name {{.CTR}} {{.TAG}}
+      - docker cp {{.CTR}}:/{{.ARTIFACT}} ./{{.ARTIFACT}}{{.SUFFIX}}
+      - docker rm {{.CTR}}
+      - ls -lh ./{{.ARTIFACT}}{{.SUFFIX}}
+
+  kernel:arm64:
+    desc: 'Build the arm64 cloud-boot kernel via Docker + extract Image. VARIANT={"",tiny,disk,lto}.'
+    vars:
+      SUFFIX: '{{if .VARIANT}}-{{.VARIANT}}{{end}}'
+      DOCKERFILE: 'Dockerfile.arm64{{.SUFFIX}}'
+      TAG: 'cloud-boot-kernel:arm64{{.SUFFIX}}'
+      ARTIFACT: 'Image'
+      CTR: 'cbk-arm64{{.SUFFIX}}'
+    dir: ../kernel
+    cmds:
+      - docker build -f {{.DOCKERFILE}} -t {{.TAG}} .
+      - docker rm -f {{.CTR}} 2>/dev/null || true
+      - docker create --name {{.CTR}} {{.TAG}}
+      - docker cp {{.CTR}}:/{{.ARTIFACT}} ./{{.ARTIFACT}}{{.SUFFIX}}
+      - docker rm {{.CTR}}
+      - ls -lh ./{{.ARTIFACT}}{{.SUFFIX}}
+
+  kernel:riscv64:
+    desc: 'Build the riscv64 cloud-boot kernel via Docker + extract Image.'
+    vars:
+      DOCKERFILE: 'Dockerfile.riscv64'
+      TAG: 'cloud-boot-kernel:riscv64'
+      ARTIFACT: 'Image'
+      CTR: 'cbk-riscv64'
+    dir: ../kernel
+    cmds:
+      - docker build -f {{.DOCKERFILE}} -t {{.TAG}} .
+      - docker rm -f {{.CTR}} 2>/dev/null || true
+      - docker create --name {{.CTR}} {{.TAG}}
+      - docker cp {{.CTR}}:/{{.ARTIFACT}} ./{{.ARTIFACT}}
+      - docker rm {{.CTR}}
+      - ls -lh ./{{.ARTIFACT}}
+
+  # ---- Full end-to-end pipelines -------------------------------------------
+  #
+  # iso:full:<arch> rebuilds the kernel from source (via docker), then
+  # builds both boot.iso (silent) AND boot-debug.iso (verbose) in one
+  # shot. Requires STUB + (PLAN_REF | IMAGE) just like the plain iso
+  # task. Use VARIANT=tiny|disk|lto to swap the kernel flavour.
+
+  # Forward block reused by every iso:full:<arch> target. Task v3 doesn't
+  # auto-cascade parent vars into `task:` sub-calls, so we replay them
+  # here. STUB is required (the EFI stub binary lives in go-coff/stub
+  # outside this repo); PLAN_REF or IMAGE picks the boot manifest source.
+
+  iso:full:amd64:
+    desc: 'Rebuild kernel + boot.iso + boot-debug.iso for amd64. Requires STUB, PLAN_REF|IMAGE. VARIANT={"",tiny,disk}.'
+    vars:
+      SUFFIX: '{{if .VARIANT}}-{{.VARIANT}}{{end}}'
+    cmds:
+      - task: kernel:amd64
+        vars: {VARIANT: '{{.VARIANT}}'}
+      - task: iso:both
+        vars:
+          ARCH: 'amd64'
+          KERNEL: '../kernel/bzImage{{.SUFFIX}}'
+          CMDLINE: 'console=ttyS0'
+          STUB: '{{.STUB}}'
+          PLAN_REF: '{{.PLAN_REF}}'
+          IMAGE: '{{.IMAGE}}'
+          TARGET: '{{.TARGET}}'
+          INSECURE: '{{.INSECURE}}'
+          EXTRA_CMDLINE: '{{.EXTRA_CMDLINE}}'
+          COSIGN_KEY: '{{.COSIGN_KEY}}'
+
+  iso:full:arm64:
+    desc: 'Rebuild kernel + boot.iso + boot-debug.iso for arm64. Requires STUB, PLAN_REF|IMAGE. VARIANT={"",tiny,disk,lto}.'
+    vars:
+      SUFFIX: '{{if .VARIANT}}-{{.VARIANT}}{{end}}'
+    cmds:
+      - task: kernel:arm64
+        vars: {VARIANT: '{{.VARIANT}}'}
+      - task: iso:both
+        vars:
+          ARCH: 'arm64'
+          KERNEL: '../kernel/Image{{.SUFFIX}}'
+          CMDLINE: 'console=ttyAMA0'
+          STUB: '{{.STUB}}'
+          PLAN_REF: '{{.PLAN_REF}}'
+          IMAGE: '{{.IMAGE}}'
+          TARGET: '{{.TARGET}}'
+          INSECURE: '{{.INSECURE}}'
+          EXTRA_CMDLINE: '{{.EXTRA_CMDLINE}}'
+          COSIGN_KEY: '{{.COSIGN_KEY}}'
+
+  iso:full:riscv64:
+    desc: 'Rebuild kernel + boot.iso + boot-debug.iso for riscv64. Requires STUB, PLAN_REF|IMAGE.'
+    cmds:
+      - task: kernel:riscv64
+      - task: iso:both
+        vars:
+          ARCH: 'riscv64'
+          KERNEL: '../kernel/Image'
+          CMDLINE: 'console=ttyS0'
+          STUB: '{{.STUB}}'
+          PLAN_REF: '{{.PLAN_REF}}'
+          IMAGE: '{{.IMAGE}}'
+          TARGET: '{{.TARGET}}'
+          INSECURE: '{{.INSECURE}}'
+          EXTRA_CMDLINE: '{{.EXTRA_CMDLINE}}'
+          COSIGN_KEY: '{{.COSIGN_KEY}}'
+
+  iso:
+    desc: 'Build a bootable UEFI ISO. Required: KERNEL, STUB, and one of PLAN_REF or IMAGE.'
+    deps: [build]
+    requires:
+      vars: [KERNEL, STUB]
+    preconditions:
+      - sh: 'test -n "{{.PLAN_REF}}{{.IMAGE}}"'
+        msg: 'set PLAN_REF=<plan-ref> or IMAGE=<image-ref>'
+    cmds:
+      - >-
+        ./bin/cloud-boot build
+        --arch    "{{.ARCH}}"
+        --kernel  "{{.KERNEL}}"
+        --stub    "{{.STUB}}"
+        --cmdline "{{.CMDLINE}}"
+        {{if .EXTRA_CMDLINE}}--extra-cmdline "{{.EXTRA_CMDLINE}}"{{end}}
+        {{if .PLAN_REF}}--plan "{{.PLAN_REF}}"{{else}}--image "{{.IMAGE}}"{{end}}
+        {{if .TARGET}}--target "{{.TARGET}}"{{end}}
+        {{if eq .INSECURE "1"}}--insecure{{end}}
+        {{if eq .VERBOSE "1"}}--verbose{{end}}
+        {{if .COSIGN_KEY}}--cosign-key "{{.COSIGN_KEY}}"{{end}}
+        -o "{{.ISO}}"
+
+  iso:both:
+    desc: 'Build boot.iso (silent) AND boot-debug.iso (verbose) in one shot. Requires KERNEL, STUB, and PLAN_REF or IMAGE.'
+    deps: [build]
+    requires:
+      vars: [KERNEL, STUB]
+    preconditions:
+      - sh: 'test -n "{{.PLAN_REF}}{{.IMAGE}}"'
+        msg: 'set PLAN_REF=<plan-ref> or IMAGE=<image-ref>'
+    cmds:
+      # Silent: default behavior, "quiet" injected, stub trace gated off.
+      # Task v3 only auto-inherits CLI-supplied vars across `task:` calls;
+      # vars passed via the parent's `vars:` block (e.g. from
+      # `iso:full:<arch>`) are scoped to the parent and must be forwarded
+      # explicitly. Listing them here keeps both `task iso:both KERNEL=...`
+      # (CLI-style) and `task: iso:both` from within iso:full working.
+      - task: iso
+        vars:
+          ARCH: '{{.ARCH}}'
+          KERNEL: '{{.KERNEL}}'
+          STUB: '{{.STUB}}'
+          CMDLINE: '{{.CMDLINE}}'
+          EXTRA_CMDLINE: '{{.EXTRA_CMDLINE}}'
+          PLAN_REF: '{{.PLAN_REF}}'
+          IMAGE: '{{.IMAGE}}'
+          TARGET: '{{.TARGET}}'
+          INSECURE: '{{.INSECURE}}'
+          COSIGN_KEY: '{{.COSIGN_KEY}}'
+          ISO: '{{.ISO | default "boot.iso"}}'
+          VERBOSE: '0'
+      # Debug: --verbose drops "quiet" so the kernel dmesg is fully visible.
+      # The stub trace requires its own rebuild with STUB_TAGS=stubdebug —
+      # not done here because the stub's path is user-supplied and lives
+      # outside this module. See README for the two-step recipe.
+      - task: iso
+        vars:
+          ARCH: '{{.ARCH}}'
+          KERNEL: '{{.KERNEL}}'
+          STUB: '{{.STUB}}'
+          CMDLINE: '{{.CMDLINE}}'
+          EXTRA_CMDLINE: '{{.EXTRA_CMDLINE}}'
+          PLAN_REF: '{{.PLAN_REF}}'
+          IMAGE: '{{.IMAGE}}'
+          TARGET: '{{.TARGET}}'
+          INSECURE: '{{.INSECURE}}'
+          COSIGN_KEY: '{{.COSIGN_KEY}}'
+          ISO: '{{.ISO_DEBUG | default "boot-debug.iso"}}'
+          VERBOSE: '1'
+
+  # ----- OCI registry helpers -----
+
+  registry:
+    desc: Start a local OCI registry on :5000 (background container)
+    cmds:
+      - docker run -d --rm --name cloud-boot-registry -p 5000:5000 registry:2
+
+  registry:stop:
+    desc: Stop the local registry container
+    cmds:
+      - docker stop cloud-boot-registry
+
+  push:plan:
+    desc: 'Push an HCL plan. Required: PLAN=<plan.hcl>, PLAN_REF=<oci-ref>.'
+    deps: [build]
+    requires:
+      vars: [PLAN, PLAN_REF]
+    cmds:
+      - ./bin/cloud-boot push plan --file "{{.PLAN}}" "{{.PLAN_REF}}"
+
+  push:artifact:
+    desc: 'Push a single-arch kernel/initrd/modules. Required: KERNEL, IMAGE.'
+    deps: [build]
+    requires:
+      vars: [KERNEL, IMAGE]
+    cmds:
+      - >-
+        ./bin/cloud-boot push artifact
+        --platform "linux/{{.ARCH}}"
+        --kernel   "{{.KERNEL}}"
+        {{if .INITRD}}--initrd "{{.INITRD}}"{{end}}
+        {{if .MODULES}}--modules "{{.MODULES}}"{{end}}
+        {{if .BOOT_CMDLINE}}--cmdline "{{.BOOT_CMDLINE}}"{{end}}
+        "{{.IMAGE}}"
+
+  push:index:
+    desc: 'Assemble a multi-arch index. PLATFORMS="linux/amd64=<ref>,linux/arm64=<ref>" INDEX_REF=<out-ref>.'
+    deps: [build]
+    requires:
+      vars: [PLATFORMS, INDEX_REF]
+    cmds:
+      - |
+        args=""
+        IFS=','
+        for p in {{.PLATFORMS}}; do
+          args="$args -p $p"
+        done
+        ./bin/cloud-boot push index $args "{{.INDEX_REF}}"
+
+  push:multi:
+    desc: 'One shot multi-arch push. KERNELS / INITRDS / MODULES = comma-separated <os/arch>=<path>; INDEX_REF=<out-ref>.'
+    deps: [build]
+    requires:
+      vars: [KERNELS, INDEX_REF]
+    cmds:
+      - |
+        args=""
+        IFS=','
+        for p in {{.KERNELS}}; do args="$args --kernel  $p"; done
+        {{if .INITRDS}}for p in {{.INITRDS}}; do args="$args --initrd  $p"; done{{end}}
+        {{if .MODULES_LIST}}for p in {{.MODULES_LIST}}; do args="$args --modules $p"; done{{end}}
+        {{if .BOOT_CMDLINE}}args="$args --cmdline {{shellQuote .BOOT_CMDLINE}}"{{end}}
+        ./bin/cloud-boot push multi $args "{{.INDEX_REF}}"
+
+  # ---- Alpine netboot smoke target -----------------------------------------
+  #
+  # Pulls the official Alpine netboot {vmlinuz-virt, initramfs-virt} for
+  # ARCH and pushes them to the local registry as an OCI artifact. The
+  # multi-arch variant additionally builds a manifest list so the plan
+  # can reference a single ref and have cloud-boot-init pick the right
+  # arch at kexec time.
+  #
+  # Defaults to Alpine 3.21 stable. Override via ALPINE_VER=<x.y>.
+  #
+  # Downloads are cached in ./.alpine-cache/<ver>/<aarch>/ to keep
+  # re-runs offline-friendly.
+  #
+  # NOTE: only vmlinuz + initramfs are pushed; the Alpine `modloop-virt`
+  # squashfs is intentionally skipped (cloud-boot's --modules layer is a
+  # cpio.gz, not a squashfs). For a kexec-works smoke test that's
+  # plenty — Alpine drops into a busybox shell on the serial console.
+
+  push:alpine:
+    desc: 'Pull + push Alpine netboot (vmlinuz + initramfs + modloop + starter apkovl) for one arch. ARCH=amd64|arm64, ALPINE_VER=3.21 (default), REPO=127.0.0.1:5000/boot/alpine.'
+    deps: [build]
+    requires:
+      vars: [ARCH]
+    vars:
+      ALPINE_VER: '{{.ALPINE_VER | default "3.21"}}'
+      ALPINE_MIRROR: '{{.ALPINE_MIRROR | default "https://dl-cdn.alpinelinux.org/alpine"}}'
+      ALPINE_AARCH: '{{if eq .ARCH "amd64"}}x86_64{{else if eq .ARCH "arm64"}}aarch64{{else}}{{.ARCH}}{{end}}'
+      REPO: '{{.REPO | default "127.0.0.1:5000/boot/alpine"}}'
+      CACHE_DIR: '{{.CACHE_DIR | default ".alpine-cache"}}/{{.ALPINE_VER}}/{{.ALPINE_AARCH}}'
+      APKOVL_REPO: '{{.APKOVL_REPO | default (printf "https://dl-cdn.alpinelinux.org/alpine/v%s" .ALPINE_VER)}}'
+      REF: '{{.REPO}}:{{.ALPINE_VER}}-{{.ARCH}}'
+    cmds:
+      - mkdir -p "{{.CACHE_DIR}}"
+      - |
+        set -e
+        base="{{.ALPINE_MIRROR}}/v{{.ALPINE_VER}}/releases/{{.ALPINE_AARCH}}/netboot"
+        for f in vmlinuz-virt initramfs-virt modloop-virt; do
+          out="{{.CACHE_DIR}}/$f"
+          if [ -s "$out" ]; then
+            echo "cache hit: $out"
+          else
+            echo "fetch: $base/$f"
+            curl -fsSL "$base/$f" -o "$out"
+          fi
+        done
+      # Generate a minimal apkovl. Once Alpine's init untars this over
+      # the new root + apk-installs everything in /etc/apk/world, we get
+      # a fully-functional Alpine (alpine-base provides /sbin/init,
+      # openrc, busybox, etc.). Internet reachable via QEMU NAT is
+      # required for apk to pull the packages on first boot — override
+      # APKOVL_REPO if you mirror Alpine packages in your registry.
+      - |
+        set -e
+        stage="{{.CACHE_DIR}}/apkovl-stage"
+        rm -rf "$stage"
+        mkdir -p "$stage/etc/apk" "$stage/etc/runlevels"
+        printf 'cloud-boot-alpine\n' > "$stage/etc/hostname"
+        printf '%s/main\n%s/community\n' "{{.APKOVL_REPO}}" "{{.APKOVL_REPO}}" > "$stage/etc/apk/repositories"
+        printf 'alpine-base\nopenrc\nbusybox\nbusybox-suid\nbusybox-openrc\nalpine-conf\nopenssh\n' > "$stage/etc/apk/world"
+        # `.default_boot_services` is Alpine's marker telling init to
+        # honour this overlay rather than treat it as random files. Its
+        # mere presence is enough.
+        : > "$stage/etc/.default_boot_services"
+        # Auto-login root on tty0/ttyS0/ttyAMA0 — drop straight to a
+        # shell after boot. We mark these in inittab; setup-alpine
+        # normally writes this.
+        mkdir -p "$stage/etc"
+        cat > "$stage/etc/inittab" <<'EOF'
+        ::sysinit:/sbin/openrc sysinit
+        ::sysinit:/sbin/openrc boot
+        ::wait:/sbin/openrc default
+        ttyS0::respawn:/sbin/getty -L 0 ttyS0 vt100
+        ttyAMA0::respawn:/sbin/getty -L 0 ttyAMA0 vt100
+        tty1::respawn:/sbin/getty 38400 tty1
+        ::ctrlaltdel:/sbin/reboot
+        ::shutdown:/sbin/openrc shutdown
+        EOF
+        tar czf "{{.CACHE_DIR}}/apkovl.tar.gz" -C "$stage" .
+        ls -lh {{.CACHE_DIR}}
+      - >-
+        ./bin/cloud-boot push artifact
+        --platform "linux/{{.ARCH}}"
+        --kernel   "{{.CACHE_DIR}}/vmlinuz-virt"
+        --initrd   "{{.CACHE_DIR}}/initramfs-virt"
+        --modloop  "{{.CACHE_DIR}}/modloop-virt"
+        --apkovl   "{{.CACHE_DIR}}/apkovl.tar.gz"
+        "{{.REF}}"
+
+  # ---- Debian netboot smoke target ----------------------------------------
+  #
+  # Pulls Debian's official netboot installer (linux + initrd.gz) for ARCH
+  # and pushes them to the local registry. Unlike Alpine there's no
+  # modloop / apkovl story to thread — debian-installer's initrd carries
+  # everything it needs to drive the install (or a rescue shell).
+  #
+  # Defaults to Debian 13 (trixie). Override via DEBIAN_CODE=<codename> or
+  # DEBIAN_VER=<num> (the version number is just the OCI tag — the URL
+  # path uses the codename, so both must be set together if you target a
+  # different release).
+
+  push:debian:
+    desc: 'Pull + push Debian netboot installer (linux + initrd.gz) for one arch. ARCH=amd64|arm64, DEBIAN_VER=13 / DEBIAN_CODE=trixie (defaults), REPO=127.0.0.1:5000/boot/debian.'
+    deps: [build]
+    requires:
+      vars: [ARCH]
+    vars:
+      DEBIAN_VER: '{{.DEBIAN_VER | default "13"}}'
+      DEBIAN_CODE: '{{.DEBIAN_CODE | default "trixie"}}'
+      DEBIAN_MIRROR: '{{.DEBIAN_MIRROR | default "https://deb.debian.org/debian"}}'
+      REPO: '{{.REPO | default "127.0.0.1:5000/boot/debian"}}'
+      CACHE_DIR: '{{.CACHE_DIR | default ".debian-cache"}}/{{.DEBIAN_CODE}}/{{.ARCH}}'
+      REF: '{{.REPO}}:{{.DEBIAN_VER}}-{{.ARCH}}'
+    cmds:
+      - mkdir -p "{{.CACHE_DIR}}"
+      - |
+        set -e
+        base="{{.DEBIAN_MIRROR}}/dists/{{.DEBIAN_CODE}}/main/installer-{{.ARCH}}/current/images/netboot/debian-installer/{{.ARCH}}"
+        for f in linux initrd.gz; do
+          out="{{.CACHE_DIR}}/$f"
+          if [ -s "$out" ]; then
+            echo "cache hit: $out"
+          else
+            echo "fetch: $base/$f"
+            curl -fsSL "$base/$f" -o "$out"
+          fi
+        done
+        ls -lh {{.CACHE_DIR}}
+      - >-
+        ./bin/cloud-boot push artifact
+        --platform "linux/{{.ARCH}}"
+        --kernel   "{{.CACHE_DIR}}/linux"
+        --initrd   "{{.CACHE_DIR}}/initrd.gz"
+        "{{.REF}}"
+
+  push:debian:multi:
+    desc: 'Pull + push Debian for amd64 AND arm64, then assemble a multi-arch index at REPO:DEBIAN_VER.'
+    deps: [build]
+    vars:
+      DEBIAN_VER: '{{.DEBIAN_VER | default "13"}}'
+      DEBIAN_CODE: '{{.DEBIAN_CODE | default "trixie"}}'
+      REPO: '{{.REPO | default "127.0.0.1:5000/boot/debian"}}'
+      INDEX_REF: '{{.INDEX_REF | default (printf "%s:%s" .REPO .DEBIAN_VER)}}'
+    cmds:
+      - task: push:debian
+        vars:
+          ARCH: 'amd64'
+          DEBIAN_VER: '{{.DEBIAN_VER}}'
+          DEBIAN_CODE: '{{.DEBIAN_CODE}}'
+          REPO: '{{.REPO}}'
+      - task: push:debian
+        vars:
+          ARCH: 'arm64'
+          DEBIAN_VER: '{{.DEBIAN_VER}}'
+          DEBIAN_CODE: '{{.DEBIAN_CODE}}'
+          REPO: '{{.REPO}}'
+      - >-
+        ./bin/cloud-boot push index
+        -p "linux/amd64={{.REPO}}:{{.DEBIAN_VER}}-amd64"
+        -p "linux/arm64={{.REPO}}:{{.DEBIAN_VER}}-arm64"
+        "{{.INDEX_REF}}"
+
+  # ---- Debian cloud-image smoke target (cloud-init + disk mode) -----------
+  #
+  # The Debian "generic-cloud" qcow2 images carry a working kernel +
+  # initrd in /boot and use cloud-init for first-boot configuration.
+  # cloud-boot's disk mode mounts the image's root partition, picks
+  # /boot/vmlinuz-* + the paired initrd, kexecs with `root=/dev/vda1`
+  # — and the booted Debian then reads the CIDATA ISO from /dev/vdb
+  # via cloud-init's NoCloud datasource.
+  #
+  # No OCI push for the qcow2 — it's a 300 MB+ disk image, served
+  # directly to QEMU via -drive. The cidata ISO is built locally.
+  #
+  # Together with the plan's `debian-cloud` target this gives a
+  # fully-functional Debian 13 system with a passwordable user
+  # (defined in examples/cloud-init/user-data.yaml).
+
+  # Debian generic-cloud images ship without an ext4 fs label on the
+  # root partition, so cloud-boot-init's `LABEL=…` resolver has
+  # nothing to match. label:debian:cloud converts the qcow2 to raw
+  # (compressed clusters in the upstream qcow2 prevent in-place
+  # superblock writes, hence the conversion step) and stamps an ext4
+  # label via `cloud-boot label`. The label subcommand uses
+  # go-diskimages' ext4 driver — no Python, no e2label, no mount.
+  label:debian:cloud:
+    desc: 'Convert Debian cloud qcow2 → raw and stamp an ext4 LABEL on its root partition. ARCH=arm64|amd64, LABEL=cloudimg-rootfs (default).'
+    deps: [build]
+    requires:
+      vars: [ARCH]
+    vars:
+      DEBIAN_VER: '{{.DEBIAN_VER | default "13"}}'
+      DEBIAN_CODE: '{{.DEBIAN_CODE | default "trixie"}}'
+      CACHE_DIR: '{{.CACHE_DIR | default ".debian-cache"}}/{{.DEBIAN_CODE}}/{{.ARCH}}'
+      RAW: '{{.RAW | default (printf "%s/genericcloud.labeled.raw" .CACHE_DIR)}}'
+      LABEL: '{{.LABEL | default "cloudimg-rootfs"}}'
+    cmds:
+      - task: fetch:debian:cloud
+        vars: {ARCH: '{{.ARCH}}', DEBIAN_VER: '{{.DEBIAN_VER}}', DEBIAN_CODE: '{{.DEBIAN_CODE}}'}
+      - |
+        set -e
+        if [ ! -s "{{.RAW}}" ] || [ "{{.CACHE_DIR}}/genericcloud.qcow2" -nt "{{.RAW}}" ]; then
+          echo "converting qcow2 → raw ({{.RAW}})"
+          qemu-img convert -O raw "{{.CACHE_DIR}}/genericcloud.qcow2" "{{.RAW}}"
+        else
+          echo "raw image up-to-date: {{.RAW}}"
+        fi
+      # --part 0 = the Linux root partition (the only data partition on
+      # Debian's arm64 cloud image; --part -1 would auto-detect on
+      # other layouts).
+      - ./bin/cloud-boot label --part 0 "{{.RAW}}" "{{.LABEL}}"
+      - ls -lh "{{.RAW}}"
+
+  fetch:debian:cloud:
+    desc: 'Download Debian genericcloud qcow2. ARCH=amd64|arm64, DEBIAN_VER=13 / DEBIAN_CODE=trixie (defaults).'
+    requires:
+      vars: [ARCH]
+    vars:
+      DEBIAN_VER: '{{.DEBIAN_VER | default "13"}}'
+      DEBIAN_CODE: '{{.DEBIAN_CODE | default "trixie"}}'
+      CLOUD_MIRROR: '{{.CLOUD_MIRROR | default "https://cloud.debian.org/images/cloud"}}'
+      CACHE_DIR: '{{.CACHE_DIR | default ".debian-cache"}}/{{.DEBIAN_CODE}}/{{.ARCH}}'
+      IMG: '{{.CACHE_DIR}}/genericcloud.qcow2'
+    cmds:
+      - mkdir -p "{{.CACHE_DIR}}"
+      - |
+        set -e
+        if [ -s "{{.IMG}}" ]; then
+          echo "cache hit: {{.IMG}}"
+        else
+          url="{{.CLOUD_MIRROR}}/{{.DEBIAN_CODE}}/latest/debian-{{.DEBIAN_VER}}-genericcloud-{{.ARCH}}.qcow2"
+          echo "fetch: $url"
+          curl -fsSL "$url" -o "{{.IMG}}"
+        fi
+        ls -lh "{{.IMG}}"
+
+  cidata:
+    desc: 'Generate a NoCloud cidata ISO from examples/cloud-init/{user-data,meta-data}.yaml. OUT=cidata.iso.'
+    vars:
+      USER_DATA: '{{.USER_DATA | default "examples/cloud-init/user-data.yaml"}}'
+      META_DATA: '{{.META_DATA | default "examples/cloud-init/meta-data.yaml"}}'
+      OUT: '{{.OUT | default "cidata.iso"}}'
+    preconditions:
+      - sh: 'test -f "{{.USER_DATA}}"'
+        msg: 'USER_DATA not found at {{.USER_DATA}}'
+      - sh: 'test -f "{{.META_DATA}}"'
+        msg: 'META_DATA not found at {{.META_DATA}}'
+    cmds:
+      # CIDATA volume label is what cloud-init's NoCloud datasource looks
+      # for. user-data + meta-data must be at the ISO root; xorriso
+      # graft-points keep the source paths flexible.
+      - rm -f "{{.OUT}}"
+      - >-
+        xorriso -as mkisofs
+        -V CIDATA -J -r
+        -output "{{.OUT}}"
+        -graft-points
+        "/user-data={{.USER_DATA}}"
+        "/meta-data={{.META_DATA}}"
+      - ls -lh "{{.OUT}}"
+
+  # qemu:arm64:debian-cloud rolls together: build the cloud-boot ISO if
+  # needed (caller), fetch the Debian cloud image (cached), generate
+  # cidata, then launch QEMU with three drives wired up:
+  #
+  #   - cdrom (boot.iso) : the cloud-boot UKI that picks the
+  #                        `debian-cloud` disk target from the plan.
+  #   - vda (qcow2)      : the Debian root disk; cloud-boot mounts its
+  #                        partition 1 and kexecs into /boot/vmlinuz-*.
+  #   - vdb (cidata.iso) : cloud-init's NoCloud datasource.
+  #
+  # ISO is whatever boot.iso you built; PLAN_REF in the ISO must point
+  # at a plan that contains a `debian-cloud` disk target.
+  qemu:arm64:debian-cloud:
+    desc: 'Boot cloud-boot ISO + Debian 13 cloud image (raw, labeled) + cidata ISO in qemu-system-aarch64.'
+    deps: [build]
+    vars:
+      OVMF_CODE_ARM64: '{{.OVMF_CODE_ARM64 | default "/opt/homebrew/share/qemu/edk2-aarch64-code.fd"}}'
+      OVMF_VARS_ARM64: '{{.OVMF_VARS_ARM64 | default ".ovmf_vars_arm64.fd"}}'
+      DEBIAN_VER: '{{.DEBIAN_VER | default "13"}}'
+      DEBIAN_CODE: '{{.DEBIAN_CODE | default "trixie"}}'
+      CLOUD_IMG: '{{.CLOUD_IMG | default (printf ".debian-cache/%s/arm64/genericcloud.labeled.raw" .DEBIAN_CODE)}}'
+      CIDATA: '{{.CIDATA | default "cidata.iso"}}'
+    preconditions:
+      - sh: 'test -f "{{.ISO}}"'
+        msg: 'build "{{.ISO}}" first (task iso ARCH=arm64 ...)'
+      - sh: 'test -f "{{.OVMF_CODE_ARM64}}"'
+        msg: 'aarch64 EDK2 code image not found at {{.OVMF_CODE_ARM64}}; set OVMF_CODE_ARM64=<path>'
+    cmds:
+      # Convert qcow2 → raw + stamp ext4 LABEL=cloudimg-rootfs on the
+      # root partition. Idempotent — raw is regenerated only if the
+      # qcow2 is newer. The plan target resolves by LABEL so drive
+      # ordering below no longer needs to match a /dev/vdaN literal.
+      - task: label:debian:cloud
+        vars:
+          ARCH: 'arm64'
+          DEBIAN_VER: '{{.DEBIAN_VER}}'
+          DEBIAN_CODE: '{{.DEBIAN_CODE}}'
+      - task: cidata
+        vars: {OUT: '{{.CIDATA}}'}
+      - test -f "{{.OVMF_VARS_ARM64}}" || dd if=/dev/zero of="{{.OVMF_VARS_ARM64}}" bs=1m count=64 status=none
+      # Drive order is now informational only — the plan target uses
+      # LABEL=cloudimg-rootfs, resolved by cloud-boot-init by scanning
+      # every partition's ext4 superblock. Cloud image first (/dev/vda),
+      # cidata (/dev/vdb, which is cloud-init's NoCloud auto-discovery
+      # path), cloud-boot ISO (/dev/vdc, bootable via UEFI scan).
+      - >-
+        qemu-system-aarch64
+        -machine virt,gic-version=max,accel=hvf:tcg
+        -cpu max
+        -m 2048 -smp 2
+        -drive if=pflash,format=raw,readonly=on,file={{.OVMF_CODE_ARM64}}
+        -drive if=pflash,format=raw,file={{.OVMF_VARS_ARM64}}
+        -drive if=virtio,format=raw,file={{.CLOUD_IMG}}
+        -drive if=virtio,format=raw,readonly=on,file={{.CIDATA}}
+        -drive if=virtio,format=raw,readonly=on,file={{.ISO}},media=cdrom
+        -netdev user,id=n0 -device virtio-net-device,netdev=n0
+        -object rng-random,id=rng0,filename=/dev/urandom -device virtio-rng-pci,rng=rng0
+        -nographic -serial mon:stdio
+
+  push:alpine:multi:
+    desc: 'Pull + push Alpine for amd64 AND arm64, then assemble a multi-arch index at REPO:ALPINE_VER.'
+    deps: [build]
+    vars:
+      ALPINE_VER: '{{.ALPINE_VER | default "3.21"}}'
+      REPO: '{{.REPO | default "127.0.0.1:5000/boot/alpine"}}'
+      INDEX_REF: '{{.INDEX_REF | default (printf "%s:%s" .REPO .ALPINE_VER)}}'
+    cmds:
+      - task: push:alpine
+        vars:
+          ARCH: 'amd64'
+          ALPINE_VER: '{{.ALPINE_VER}}'
+          REPO: '{{.REPO}}'
+      - task: push:alpine
+        vars:
+          ARCH: 'arm64'
+          ALPINE_VER: '{{.ALPINE_VER}}'
+          REPO: '{{.REPO}}'
+      - >-
+        ./bin/cloud-boot push index
+        -p "linux/amd64={{.REPO}}:{{.ALPINE_VER}}-amd64"
+        -p "linux/arm64={{.REPO}}:{{.ALPINE_VER}}-arm64"
+        "{{.INDEX_REF}}"
+
+  modpack:
+    desc: 'Pack a /lib/modules tree into a cpio.gz. Required: SRC, OUT.'
+    deps: [build]
+    requires:
+      vars: [SRC, OUT]
+    cmds:
+      - ./bin/cloud-boot push modpack --src "{{.SRC}}" -o "{{.OUT}}"
+
+  # ----- QEMU -----
+
+  qemu:
+    desc: Boot the ISO in QEMU with virtio
+    preconditions:
+      - sh: 'test -f "{{.ISO}}"'
+        msg: 'build "{{.ISO}}" first (task iso ...)'
+    cmds:
+      - cp -f "{{.OVMF_VARS}}" .ovmf_vars.fd
+      - >-
+        {{.QEMU}}
+        -machine {{.QEMU_MACHINE}}
+        {{if .QEMU_CPU}}-cpu {{.QEMU_CPU}}{{end}}
+        -m 1024 -smp 2
+        -drive if=pflash,format=raw,readonly=on,file={{.OVMF_CODE}}
+        -drive if=pflash,format=raw,file=.ovmf_vars.fd
+        -drive if=virtio,format=raw,readonly=on,file={{.ISO}},media=cdrom
+        -netdev user,id=n0 -device virtio-net-pci,netdev=n0
+        -object rng-random,id=rng0,filename=/dev/urandom -device virtio-rng-pci,rng=rng0
+        -nographic -serial mon:stdio
+
+  # qemu:arm64 is intentionally standalone rather than delegating to qemu via
+  # `task: qemu vars: …` — the parent task pre-sets OVMF_CODE / OVMF_VARS as
+  # globals, so a `{{.OVMF_CODE | default …}}` override inside vars never
+  # fires (the value is already non-empty). The arm64 flow also needs a
+  # different netdev (virtio-net-device on the MMIO bus) and synthesises an
+  # empty vars store, since Homebrew's edk2-aarch64 build ships only the
+  # code image.
+  qemu:arm64:
+    desc: 'Boot the ISO in qemu-system-aarch64 (uses hvf on Apple Silicon, tcg fallback)'
+    vars:
+      OVMF_CODE_ARM64: '{{.OVMF_CODE_ARM64 | default "/opt/homebrew/share/qemu/edk2-aarch64-code.fd"}}'
+      OVMF_VARS_ARM64: '{{.OVMF_VARS_ARM64 | default ".ovmf_vars_arm64.fd"}}'
+    preconditions:
+      - sh: 'test -f "{{.ISO}}"'
+        msg: 'build "{{.ISO}}" first (task iso ARCH=arm64 ...)'
+      - sh: 'test -f "{{.OVMF_CODE_ARM64}}"'
+        msg: 'aarch64 EDK2 code image not found at {{.OVMF_CODE_ARM64}}; set OVMF_CODE_ARM64=<path>'
+    cmds:
+      # EDK2 wants a 64 MiB writable pflash store. Homebrew doesn't ship one
+      # for aarch64, so generate a blank one — the firmware formats it on
+      # first boot.
+      - test -f "{{.OVMF_VARS_ARM64}}" || dd if=/dev/zero of="{{.OVMF_VARS_ARM64}}" bs=1m count=64 status=none
+      - >-
+        qemu-system-aarch64
+        -machine virt,gic-version=max,accel=hvf:tcg
+        -cpu max
+        -m 1024 -smp 2
+        -drive if=pflash,format=raw,readonly=on,file={{.OVMF_CODE_ARM64}}
+        -drive if=pflash,format=raw,file={{.OVMF_VARS_ARM64}}
+        -drive if=virtio,format=raw,readonly=on,file={{.ISO}},media=cdrom
+        -netdev user,id=n0 -device virtio-net-device,netdev=n0
+        -object rng-random,id=rng0,filename=/dev/urandom -device virtio-rng-pci,rng=rng0
+        -nographic -serial mon:stdio
+
+  # Same standalone-vs-delegated reasoning as qemu:arm64. virt machine,
+  # 8250-pci serial, virtio over PCI (the riscv64 virt machine uses PCI
+  # for everything, unlike arm64-virt where -device virtio-net-device
+  # speaks MMIO). HVF is x86/arm only, so accel falls back to tcg.
+  #
+  # NOTE: this task expects a riscv64 UEFI stub (BOOTRISCV64.EFI). The
+  # go-coff/stub repo does not yet build one — TinyGo's runtime is
+  # missing the riscv64-uefi port (see ../../go-coff/stub/Taskfile.yaml).
+  # Pass STUB=… pointing at any working riscv64 UEFI stub, e.g. a
+  # systemd-stub copy, until the upstream stub is fleshed out.
+  qemu:riscv64:
+    desc: 'Boot the ISO in qemu-system-riscv64 (tcg only; no hvf for riscv).'
+    vars:
+      OVMF_CODE_RISCV64: '{{.OVMF_CODE_RISCV64 | default "/opt/homebrew/share/qemu/edk2-riscv-code.fd"}}'
+      OVMF_VARS_RISCV64: '{{.OVMF_VARS_RISCV64 | default "/opt/homebrew/share/qemu/edk2-riscv-vars.fd"}}'
+    preconditions:
+      - sh: 'test -f "{{.ISO}}"'
+        msg: 'build "{{.ISO}}" first (task iso ARCH=riscv64 ...)'
+      - sh: 'test -f "{{.OVMF_CODE_RISCV64}}"'
+        msg: 'riscv64 EDK2 code image not found at {{.OVMF_CODE_RISCV64}}; set OVMF_CODE_RISCV64=<path>'
+      - sh: 'test -f "{{.OVMF_VARS_RISCV64}}"'
+        msg: 'riscv64 EDK2 vars image not found at {{.OVMF_VARS_RISCV64}}; set OVMF_VARS_RISCV64=<path>'
+    cmds:
+      - cp -f "{{.OVMF_VARS_RISCV64}}" .ovmf_vars_riscv64.fd
+      - >-
+        qemu-system-riscv64
+        -machine virt
+        -cpu rv64
+        -m 1024 -smp 2
+        -drive if=pflash,format=raw,readonly=on,file={{.OVMF_CODE_RISCV64}}
+        -drive if=pflash,format=raw,file=.ovmf_vars_riscv64.fd
+        -drive if=virtio,format=raw,readonly=on,file={{.ISO}},media=cdrom
+        -netdev user,id=n0 -device virtio-net-pci,netdev=n0
+        -object rng-random,id=rng0,filename=/dev/urandom -device virtio-rng-pci,rng=rng0
+        -nographic -serial mon:stdio
+
+  clean:
+    cmds:
+      - rm -rf bin "{{.ISO}}" .ovmf_vars.fd .ovmf_vars_arm64.fd .ovmf_vars_riscv64.fd
