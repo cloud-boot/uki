@@ -940,6 +940,141 @@ tasks:
         -object rng-random,id=rng0,filename=/dev/urandom -device virtio-rng-pci,rng=rng0
         -nographic -serial mon:stdio
 
+  # ----- vfkit:arm64:menu — same menu, but under real Apple VZ ----------
+  #
+  # vfkit:arm64:menu mirrors qemu:arm64:menu but launches the resulting
+  # boot.iso under vfkit (Apple Virtualization.framework). Three things
+  # differ from the QEMU sibling:
+  #
+  #  1. **`cloudboot.exit=reboot`** is injected into EXTRA_CMDLINE. Under
+  #     VZ the existing kexec sink hangs the VM silently (Apple's
+  #     hypervisor traps kexec_file_load — see memory:uki-vz-constraint),
+  #     so init dispatches to the menu-then-reboot sink instead:
+  #     write \EFI\Linux\<T>-vmlinuz.efi + \EFI\Linux\<T>-initrd on the
+  #     boot.iso's writable ESP (hybrid GPT layout from commit a821be9),
+  #     write Boot0001 + prepend BootOrder, reboot(2). The next firmware
+  #     boot loads the staged target via standard LoadImage+StartImage —
+  #     a code path VZ honours natively. See memory:uki-menu-then-reboot.
+  #
+  #  2. The boot.iso is attached as a plain **virtio-blk** (read-write,
+  #     not `media=cdrom,readonly=on` as under QEMU). The reboot sink
+  #     mutates the FAT partition in-place; if the iso were attached
+  #     read-only the writes would fail and nothing would boot on the
+  #     second round.
+  #
+  #  3. Console = **hvc0** (vfkit's virtio-serial), not ttyAMA0. Serial
+  #     output is captured to logFilePath rather than streamed to the
+  #     terminal.
+  #
+  # First-run flow: registry → push artifacts → build hybrid-GPT
+  # boot.iso → launch vfkit. The user picks a target in the menu;
+  # init fetches it from OCI (or mounts the DISK target), stages on the
+  # ESP, reboots; the VM restarts and the firmware boots the chosen
+  # target's kernel.
+  #
+  # vfkit doesn't expose a `-nographic` equivalent so we point its
+  # virtio-serial at a log file under /tmp/vz-test/vfkit/. Tail it in
+  # another terminal with `tail -F /tmp/vz-test/vfkit/menu-serial.log`
+  # to watch the menu come up.
+
+  vfkit:arm64:menu:
+    desc: 'Boot Apple VZ via vfkit with a menu offering every supported OCI + DISK distro (no timeout). Uses cloudboot.exit=reboot.'
+    deps: [build]
+    vars:
+      STUB: '{{.STUB | default "../../go-coff/stub/BOOTAA64.EFI"}}'
+      KERNEL: '{{.KERNEL | default "../kernel/Image-disk"}}'
+      PLAN: '{{.PLAN | default "examples/plan-vz-test.hcl"}}'
+      PLAN_REF: '{{.PLAN_REF | default "127.0.0.1:5000/boot/plan:vz-test"}}'
+      DEBIAN_VER: '{{.DEBIAN_VER | default "13"}}'
+      DEBIAN_CODE: '{{.DEBIAN_CODE | default "trixie"}}'
+      DEBIAN_LIVE_VER: '{{.DEBIAN_LIVE_VER | default "13.5.0"}}'
+      ALPINE_VER: '{{.ALPINE_VER | default "3.21"}}'
+      DEBIAN_CLOUD: '.debian-cache/{{.DEBIAN_CODE}}/arm64/genericcloud.labeled.raw'
+      UBUNTU_CLOUD: '.ubuntu-cache/noble/arm64/genericcloud.raw'
+      ALPINE_CLOUD: '.alpine-cache/3.21/aarch64/cloud/alpine.raw'
+      CIDATA: '{{.CIDATA | default "cidata.iso"}}'
+      ISO: '{{.ISO | default "boot.iso"}}'
+      VZ_DIR: '{{.VZ_DIR | default "/tmp/vz-test/vfkit"}}'
+    preconditions:
+      - sh: 'which vfkit > /dev/null'
+        msg: 'vfkit not installed — `brew install vfkit`.'
+      - sh: 'test -f "{{.KERNEL}}"'
+        msg: 'bootstrap kernel missing at {{.KERNEL}} — run `task kernel:arm64 VARIANT=disk` first.'
+      - sh: 'test -f "{{.STUB}}"'
+        msg: 'UEFI stub missing at {{.STUB}} — build it in ../go-coff/stub.'
+      - sh: 'docker info > /dev/null 2>&1'
+        msg: 'Docker is not available; the local registry container needs it.'
+    cmds:
+      # 1. Local OCI registry — same idempotent wrap as qemu:arm64:menu.
+      - |
+        if ! docker ps --format '{{`{{.Names}}`}}' | grep -q '^cloud-boot-registry$'; then
+          docker run -d --rm --name cloud-boot-registry -p 5000:5000 registry:3.0.0
+        fi
+        until curl -sf -o /dev/null http://127.0.0.1:5000/v2/; do sleep 1; done
+        echo "registry up"
+      # 2. OCI artifacts.
+      - task: push:alpine
+        vars:
+          ARCH: 'arm64'
+          ALPINE_VER: '{{.ALPINE_VER}}'
+      - task: push:debian
+        vars:
+          ARCH: 'arm64'
+          DEBIAN_VER: '{{.DEBIAN_VER}}'
+          DEBIAN_CODE: '{{.DEBIAN_CODE}}'
+      - task: push:debian-live
+        vars:
+          ARCH: 'amd64'
+          DEBIAN_LIVE_VER: '{{.DEBIAN_LIVE_VER}}'
+          FLAVOR: 'standard'
+      # 3. Plan.
+      - task: push:plan
+        vars: {PLAN: '{{.PLAN}}', PLAN_REF: '{{.PLAN_REF}}'}
+      # 4-5. Disk images for DISK targets.
+      - task: label:debian:cloud
+        vars: {ARCH: 'arm64', DEBIAN_VER: '{{.DEBIAN_VER}}', DEBIAN_CODE: '{{.DEBIAN_CODE}}'}
+      - task: fetch:ubuntu:cloud
+        vars: {ARCH: 'arm64'}
+      - task: fetch:alpine:cloud
+        vars: {ARCH: 'arm64', ALPINE_VER: '3.21.0'}
+      # 6. cloud-init seed.
+      - task: cidata
+        vars: {OUT: '{{.CIDATA}}'}
+      # 7. Boot ISO. EXTRA_CMDLINE forces the menu on + disables timeout
+      # AND switches the exit sink to "reboot" so init does
+      # menu-then-reboot rather than kexec (kexec_file_load traps under
+      # VZ — see memory:uki-vz-constraint).
+      - task: iso
+        vars:
+          ARCH: 'arm64'
+          KERNEL: '{{.KERNEL}}'
+          STUB: '{{.STUB}}'
+          CMDLINE: 'console=hvc0'
+          EXTRA_CMDLINE: 'cloudboot.menu=1 cloudboot.menu.timeout=0 cloudboot.exit=reboot'
+          PLAN_REF: '{{.PLAN_REF}}'
+          INSECURE: '1'
+          ISO: '{{.ISO}}'
+      # 8. vfkit run. The boot.iso is r/w so the reboot sink can
+      # mutate the ESP partition; distro disks are attached so DISK
+      # targets work; cidata for cloud-init NoCloud datasource. The
+      # virtio-serial logFilePath captures both the menu and the
+      # post-reboot distro console.
+      - mkdir -p {{.VZ_DIR}}
+      - rm -f {{.VZ_DIR}}/menu-vars.fd {{.VZ_DIR}}/menu-serial.log
+      - echo "tail -F {{.VZ_DIR}}/menu-serial.log in another terminal to watch the menu + distro console"
+      - >-
+        vfkit --cpus 2 --memory 2048
+        --bootloader efi,variable-store={{.VZ_DIR}}/menu-vars.fd,create
+        --device virtio-blk,path={{.ISO}}
+        --device virtio-blk,path={{.DEBIAN_CLOUD}}
+        --device virtio-blk,path={{.UBUNTU_CLOUD}}
+        --device virtio-blk,path={{.ALPINE_CLOUD}}
+        --device virtio-blk,path={{.CIDATA}}
+        --device virtio-serial,logFilePath={{.VZ_DIR}}/menu-serial.log
+        --device virtio-rng
+        --device virtio-net,nat,mac=72:20:43:d4:38:09
+        --gui
+
   push:alpine:multi:
     desc: 'Pull + push Alpine for amd64 AND arm64, then assemble a multi-arch index at REPO:ALPINE_VER.'
     deps: [build]
