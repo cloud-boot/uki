@@ -365,6 +365,48 @@ func TestBuildISO_Wiring(t *testing.T) {
 	}
 }
 
+// TestBuildISO_HybridGPTRecipe locks in the xorriso command shape so
+// nobody silently reverts to the pre-menu-then-reboot pure-El-Torito
+// form. The reboot sink in cloud-boot-init/ needs the appended-
+// partition layout so the ESP is a real GPT partition Linux can
+// mount r/w; reverting to `-e efiboot.img -no-emul-boot` would
+// produce an iso where the firmware-visible FAT is buried inside
+// iso9660 and unmountable as a writable filesystem.
+func TestBuildISO_HybridGPTRecipe(t *testing.T) {
+	dir := t.TempDir()
+	esp := filepath.Join(dir, "efiboot.img")
+	os.WriteFile(esp, []byte("FAT"), 0o644)
+	var gotArgs []string
+	prev := CmdRun
+	CmdRun = func(name string, args ...string) error {
+		if name == "xorriso" {
+			gotArgs = args
+		}
+		return nil
+	}
+	t.Cleanup(func() { CmdRun = prev })
+	if err := buildISO(esp, filepath.Join(dir, "out.iso")); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{
+		"--interval:appended_partition_2:all::",
+		"-append_partition", "2", "C12A7328-F81F-11D2-BA4B-00A0C93EC93B",
+		"-appended_part_as_gpt",
+	}
+	for _, tok := range want {
+		found := false
+		for _, a := range gotArgs {
+			if a == tok {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("xorriso args missing %q\nfull args: %v", tok, gotArgs)
+		}
+	}
+}
+
 func TestBuildESP_TruncateFails(t *testing.T) {
 	if err := buildESP("efi", "BOOTX64.EFI", "/no/such/path/esp.img"); err == nil {
 		t.Fatal("expected truncate error")

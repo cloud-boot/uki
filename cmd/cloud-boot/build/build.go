@@ -265,22 +265,63 @@ func buildESP(efi, efiName, out string) error {
 	return run("mcopy", "-i", out, efi, "::/EFI/BOOT/"+efiName)
 }
 
+// buildISO produces a hybrid ISO that is simultaneously:
+//
+//   - El Torito bootable for plain ISO9660 firmware paths (the same
+//     code path every UEFI firmware uses to autoboot a removable
+//     "CD"-shaped device).
+//   - A GPT-partitioned block device whose partition 2 carries the
+//     EFI System Partition type GUID (C12A7328-F81F-11D2-BA4B-
+//     00A0C93EC93B). The ESP partition's bytes ARE the FAT32 image
+//     in `esp` — appended at the tail of the ISO via xorriso's
+//     -append_partition mechanism. The El Torito boot catalog uses
+//     `--interval:appended_partition_2:all::` so the firmware reads
+//     boot sectors from the same byte range that GPT exposes as
+//     partition 2 — one image, two views.
+//
+// Why this layout matters: the menu-then-reboot sink in cloud-boot-
+// init/ needs to write \EFI\Linux\<target>-* files onto the FAT
+// ESP and then call reboot(2). On the prior pure-iso9660 layout
+// the firmware-visible FAT image lived inside a read-only iso9660
+// file (efiboot.img) — Linux could not mount it as a writable
+// partition. With the hybrid GPT layout the same FAT image is
+// exposed as a real GPT partition that mounts vfat r/w under
+// Linux, so the sink can mutate it and reboot.
+//
+// See memory:uki-menu-then-reboot for the architecture rationale.
 func buildISO(esp, out string) error {
-	log.Printf("creating ISO -> %s", out)
+	log.Printf("creating ISO -> %s (hybrid GPT, ESP=appended partition 2)", out)
+	if _, err := os.Stat(esp); err != nil {
+		return fmt.Errorf("esp image: %w", err)
+	}
 	stage, err := os.MkdirTemp("", "iso-stage-")
 	if err != nil {
 		return err
 	}
 	defer os.RemoveAll(stage)
-	if err := uki.Copy(filepath.Join(stage, "efiboot.img"), esp); err != nil {
+	// xorriso refuses to author an iso9660 filesystem with zero
+	// files — drop a tiny README so the iso9660 portion is well-
+	// formed even though we don't put efiboot.img inside it.
+	readme := filepath.Join(stage, "README.txt")
+	if err := os.WriteFile(readme, []byte("cloud-boot bootable image. See partition 2 (ESP) for boot files.\n"), 0o644); err != nil {
 		return err
 	}
 	return run("xorriso",
 		"-as", "mkisofs",
 		"-V", "GOPXE",
 		"-o", out,
-		"-e", "efiboot.img",
+		// El Torito boot catalog points at the GPT-appended ESP
+		// (partition 2), not at a file inside iso9660. The
+		// `--interval:appended_partition_2:all::` token tells
+		// mkisofs to use the appended partition's byte range as
+		// the El Torito boot image.
 		"-no-emul-boot",
+		"-e", "--interval:appended_partition_2:all::",
+		// Append the FAT ESP as GPT partition 2 with the proper
+		// EFI System type GUID. -appended_part_as_gpt makes it a
+		// real GPT entry (vs. an MBR-only partition).
+		"-append_partition", "2", "C12A7328-F81F-11D2-BA4B-00A0C93EC93B", esp,
+		"-appended_part_as_gpt",
 		stage,
 	)
 }

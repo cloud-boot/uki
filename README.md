@@ -9,7 +9,7 @@ One CLI, three top-level cobra subcommands:
 
 | Subcommand            | Role |
 | --------------------- | ---- |
-| `cloud-boot build`    | Cross-compiles `cloud-boot-init` for the target arch, builds an initramfs (cpio.gz), assembles a UKI (`.linux` + `.initrd` + `.cmdline` + …) via [`github.com/go-coff/pe`](https://github.com/go-coff/pe), stages a FAT16 ESP image, and writes a UEFI-bootable El Torito ISO. |
+| `cloud-boot build`    | Cross-compiles `cloud-boot-init` for the target arch, builds an initramfs (cpio.gz), assembles a UKI (`.linux` + `.initrd` + `.cmdline` + …) via [`github.com/go-coff/pe`](https://github.com/go-coff/pe), stages a FAT32 ESP image, and writes a hybrid GPT + El Torito ISO whose appended GPT partition 2 (type EFI System Partition) is byte-identical to the ESP — so the in-VM Linux can mount it r/w and the menu-then-reboot sink can write `\EFI\Linux\*` for the next firmware boot. |
 | `cloud-boot push`     | Pushes single-arch artifacts (`push artifact`), HCL boot plans (`push plan`), multi-arch image indexes (`push index`), and packs `/lib/modules` trees into `modules.cpio.gz` (`push modpack`). |
 | `cloud-boot label`    | Reads or writes the ext4 volume label of a disk image (raw, QCOW2, or UDIF-UDRW DMG). Used by `task label:debian:cloud` to stamp `LABEL=cloudimg-rootfs` on the Debian cloud image before booting it through a `device = "LABEL=…"` disk-mode plan target. Format detection + in-place writes (incl. UDRW koly checksum refresh) come from `github.com/go-diskimages/diskimage`. |
 
