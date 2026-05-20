@@ -530,34 +530,27 @@ tasks:
           echo "fetch: {{.ISO_URL}}"
           curl -fsSL "{{.ISO_URL}}" -o "$iso"
         fi
-        # Extract /live/vmlinuz-*, /live/initrd.img-*, /live/filesystem.squashfs.
-        # Debian Live ISOs name vmlinuz/initrd with a suffix per
-        # arch+flavor; resolve the actual paths from the ISO listing,
-        # then read each out via osirrox.
-        cd "{{.CACHE_DIR}}"
-        # Get the actual filenames under /live/ from the ISO TOC.
-        # `xorriso -indev <iso> -find /live -type f -print -- -name 'vmlinuz*'`
-        # prints the path; the trick is the trailing `--` then matching expr.
-        VMLINUZ=$(xorriso -indev "$iso" -find /live -name 'vmlinuz*' -type f 2>/dev/null | tail -n +1 | head -1 | tr -d "'" | sed 's|^"\(.*\)"$|\1|')
-        INITRD=$(xorriso -indev "$iso" -find /live -name 'initrd.img-*' -type f 2>/dev/null | tail -n +1 | head -1 | tr -d "'" | sed 's|^"\(.*\)"$|\1|')
-        SQUASHFS=$(xorriso -indev "$iso" -find /live -name 'filesystem.squashfs' -type f 2>/dev/null | tail -n +1 | head -1 | tr -d "'" | sed 's|^"\(.*\)"$|\1|')
-        if [ -z "$VMLINUZ" ] || [ -z "$INITRD" ] || [ -z "$SQUASHFS" ]; then
-          echo "Could not find live/{vmlinuz,initrd.img,filesystem.squashfs} in $iso" >&2
-          echo "  vmlinuz=$VMLINUZ" >&2
-          echo "  initrd=$INITRD" >&2
-          echo "  squashfs=$SQUASHFS" >&2
+        # Extract /live/vmlinuz, /live/initrd.img, /live/filesystem.squashfs.
+        # Debian Live's /live/vmlinuz and /live/initrd.img are symlinks
+        # to the versioned filenames (vmlinuz-X.Y.Z-amd64 etc.);
+        # extracting the symlink targets through osirrox gives us
+        # plain unversioned files in the output dir — simpler than
+        # parsing xorriso -find output to discover the version suffix.
+        cache="{{.CACHE_DIR}}"
+        rm -f "$cache/vmlinuz" "$cache/initrd.img" "$cache/filesystem.squashfs"
+        xorriso -osirrox on:auto_chmod_on -indev "$iso" \
+          -extract /live/vmlinuz            "$cache/vmlinuz" \
+          -extract /live/initrd.img         "$cache/initrd.img" \
+          -extract /live/filesystem.squashfs "$cache/filesystem.squashfs"
+        # Sanity check: the kernel must look like a Linux bzImage
+        # (the EFI stub PE header puts "MZ" at offset 0 too, which is
+        # what live-boot's kexec consumes).
+        head -c 2 "$cache/vmlinuz" | od -An -c | grep -q 'M   Z' || {
+          echo "extracted vmlinuz doesn't look like a Linux kernel" >&2
+          file "$cache/vmlinuz" "$cache/initrd.img" "$cache/filesystem.squashfs"
           exit 1
-        fi
-        echo "extracting from $iso:"
-        echo "  $VMLINUZ"
-        echo "  $INITRD"
-        echo "  $SQUASHFS"
-        # osirrox copies a file out of the ISO into the host fs.
-        xorriso -osirrox on -indev "$iso" \
-          -extract "$VMLINUZ" vmlinuz \
-          -extract "$INITRD"  initrd.img \
-          -extract "$SQUASHFS" filesystem.squashfs
-        ls -lh vmlinuz initrd.img filesystem.squashfs
+        }
+        ls -lh "$cache/vmlinuz" "$cache/initrd.img" "$cache/filesystem.squashfs"
       - >-
         ./bin/cloud-boot push artifact
         --platform "linux/{{.ARCH}}"
