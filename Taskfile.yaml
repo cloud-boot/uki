@@ -417,9 +417,20 @@ tasks:
         # honour this overlay rather than treat it as random files. Its
         # mere presence is enough.
         : > "$stage/etc/.default_boot_services"
-        # Auto-login root on tty0/ttyS0/ttyAMA0 — drop straight to a
-        # shell after boot. We mark these in inittab; setup-alpine
-        # normally writes this.
+        # Auto-login root on every console alpine might reach us
+        # through — drop straight to a shell after boot. We mark
+        # these in inittab; setup-alpine normally writes this.
+        #
+        # Per-hypervisor console mapping (Linux device names):
+        #   QEMU q35       (amd64)        → ttyS0   (8250 UART)
+        #   QEMU virt      (arm64)        → ttyAMA0 (PL011 UART)
+        #   Apple VZ       (arm64, vfkit) → hvc0    (virtio-console)
+        # We list all three; busybox getty's respawn loop on a
+        # missing tty is harmless under QEMU but Alpine's inittab
+        # parser used to emit "can't open /dev/ttyAMA0" warnings
+        # in a tight loop when the hardware was absent (e.g.
+        # arm64 under VZ where there's no PL011) — leaving hvc0
+        # out meant the VZ console had no login prompt at all.
         mkdir -p "$stage/etc"
         cat > "$stage/etc/inittab" <<'EOF'
         ::sysinit:/sbin/openrc sysinit
@@ -427,6 +438,7 @@ tasks:
         ::wait:/sbin/openrc default
         ttyS0::respawn:/sbin/getty -L 0 ttyS0 vt100
         ttyAMA0::respawn:/sbin/getty -L 0 ttyAMA0 vt100
+        hvc0::respawn:/sbin/getty -L 0 hvc0 vt100
         tty1::respawn:/sbin/getty 38400 tty1
         ::ctrlaltdel:/sbin/reboot
         ::shutdown:/sbin/openrc shutdown
