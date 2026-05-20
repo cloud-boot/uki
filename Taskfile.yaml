@@ -982,9 +982,24 @@ tasks:
     deps: [build]
     vars:
       STUB: '{{.STUB | default "../../go-coff/stub/BOOTAA64.EFI"}}'
-      KERNEL: '{{.KERNEL | default "../kernel/Image-disk"}}'
+      # KERNEL defaults to the "cloud" variant (not "disk"). The disk-
+      # arm64 fragment is a tinyconfig+disk overlay sized for the
+      # original kexec-into-distro chain — it lacks the syscall
+      # surface that Go's runtime needs at PID 1 (no FUTEX, no
+      # SIGNALFD/EVENTFD/TIMERFD), so cloud-boot-init segfaults
+      # immediately under it. The "cloud" variant carries the full
+      # syscall surface plus everything we layered onto disk-arm64
+      # (VFAT, EFIVAR_FS, VIRTIO_CONSOLE, …) so the menu-then-reboot
+      # sink runs cleanly under vfkit.
+      KERNEL: '{{.KERNEL | default "../kernel/Image"}}'
       PLAN: '{{.PLAN | default "examples/plan-vz-test.hcl"}}'
-      PLAN_REF: '{{.PLAN_REF | default "127.0.0.1:5000/boot/plan:vz-test"}}'
+      # PUSH_REF: where the host CLI pushes the plan (loopback,
+      # always available). GUEST_REF: where the in-VM init pulls
+      # from (NAT bridge gateway IP, 192.168.64.1 is vfkit's
+      # default). Both URLs hit the same registry container (the
+      # docker `-p 5000:5000` bind covers every host interface).
+      PUSH_REF: '{{.PUSH_REF | default "127.0.0.1:5000/boot/plan:vz-test"}}'
+      GUEST_REF: '{{.GUEST_REF | default "192.168.64.1:5000/boot/plan:vz-test"}}'
       DEBIAN_VER: '{{.DEBIAN_VER | default "13"}}'
       DEBIAN_CODE: '{{.DEBIAN_CODE | default "trixie"}}'
       DEBIAN_LIVE_VER: '{{.DEBIAN_LIVE_VER | default "13.5.0"}}'
@@ -999,7 +1014,7 @@ tasks:
       - sh: 'which vfkit > /dev/null'
         msg: 'vfkit not installed — `brew install vfkit`.'
       - sh: 'test -f "{{.KERNEL}}"'
-        msg: 'bootstrap kernel missing at {{.KERNEL}} — run `task kernel:arm64 VARIANT=disk` first.'
+        msg: 'bootstrap kernel missing at {{.KERNEL}} — run `task kernel:arm64` first.'
       - sh: 'test -f "{{.STUB}}"'
         msg: 'UEFI stub missing at {{.STUB}} — build it in ../go-coff/stub.'
       - sh: 'docker info > /dev/null 2>&1'
@@ -1027,9 +1042,11 @@ tasks:
           ARCH: 'amd64'
           DEBIAN_LIVE_VER: '{{.DEBIAN_LIVE_VER}}'
           FLAVOR: 'standard'
-      # 3. Plan.
+      # 3. Plan. Pushed to PUSH_REF (loopback) — the registry
+      # container is reachable on the host via 127.0.0.1:5000 AND
+      # via 192.168.64.1:5000 (it binds 0.0.0.0:5000).
       - task: push:plan
-        vars: {PLAN: '{{.PLAN}}', PLAN_REF: '{{.PLAN_REF}}'}
+        vars: {PLAN: '{{.PLAN}}', PLAN_REF: '{{.PUSH_REF}}'}
       # 4-5. Disk images for DISK targets.
       - task: label:debian:cloud
         vars: {ARCH: 'arm64', DEBIAN_VER: '{{.DEBIAN_VER}}', DEBIAN_CODE: '{{.DEBIAN_CODE}}'}
@@ -1043,7 +1060,10 @@ tasks:
       # 7. Boot ISO. EXTRA_CMDLINE forces the menu on + disables timeout
       # AND switches the exit sink to "reboot" so init does
       # menu-then-reboot rather than kexec (kexec_file_load traps under
-      # VZ — see memory:uki-vz-constraint).
+      # VZ — see memory:uki-vz-constraint). The iso bakes
+      # PLAN_REF=GUEST_REF into the cmdline so the in-VM init dials
+      # the host via the NAT bridge gateway (192.168.64.1), not the
+      # loopback ref the host CLI uses for pushing.
       - task: iso
         vars:
           ARCH: 'arm64'
@@ -1051,7 +1071,7 @@ tasks:
           STUB: '{{.STUB}}'
           CMDLINE: 'console=hvc0'
           EXTRA_CMDLINE: 'cloudboot.menu=1 cloudboot.menu.timeout=0 cloudboot.exit=reboot'
-          PLAN_REF: '{{.PLAN_REF}}'
+          PLAN_REF: '{{.GUEST_REF}}'
           INSECURE: '1'
           ISO: '{{.ISO}}'
       # 8. vfkit run. The boot.iso is r/w so the reboot sink can
