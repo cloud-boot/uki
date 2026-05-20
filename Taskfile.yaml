@@ -432,13 +432,24 @@ tasks:
         # arm64 under VZ where there's no PL011) — leaving hvc0
         # out meant the VZ console had no login prompt at all.
         mkdir -p "$stage/etc"
+        # Each serial-console getty is wrapped in a shell that
+        # only execs getty if the corresponding /dev/tty* node
+        # actually exists. busybox init's "respawn" action
+        # otherwise retries getty in a tight loop when the
+        # device is missing — Apple VZ has no PL011 so
+        # /dev/ttyAMA0 doesn't exist and the unwrapped form
+        # spammed "can't open /dev/ttyAMA0" on the live
+        # console. The 86400-second sleep on the failure path
+        # rate-limits the respawn to once per day; combined
+        # with the test, that effectively quiets the line on
+        # the hypervisors where the device is absent.
         cat > "$stage/etc/inittab" <<'EOF'
         ::sysinit:/sbin/openrc sysinit
         ::sysinit:/sbin/openrc boot
         ::wait:/sbin/openrc default
-        ttyS0::respawn:/sbin/getty -L 0 ttyS0 vt100
-        ttyAMA0::respawn:/sbin/getty -L 0 ttyAMA0 vt100
-        hvc0::respawn:/sbin/getty -L 0 hvc0 vt100
+        ttyS0::respawn:/bin/sh -c '[ -c /dev/ttyS0   ] && exec /sbin/getty -L 0 ttyS0   vt100; sleep 86400'
+        ttyAMA0::respawn:/bin/sh -c '[ -c /dev/ttyAMA0 ] && exec /sbin/getty -L 0 ttyAMA0 vt100; sleep 86400'
+        hvc0::respawn:/bin/sh -c '[ -c /dev/hvc0    ] && exec /sbin/getty -L 0 hvc0    vt100; sleep 86400'
         tty1::respawn:/sbin/getty 38400 tty1
         ::ctrlaltdel:/sbin/reboot
         ::shutdown:/sbin/openrc shutdown
@@ -1090,13 +1101,14 @@ tasks:
           # kernel) while the serial log continues to receive
           # all output.
           CMDLINE: 'console=hvc0 console=tty0'
-          # cloudboot.keymap=fr loads a minimal French AZERTY
-          # keymap via KDSKBENT before the menu prompts. Drop
-          # it (or set =us) if you're on a US/QWERTY host
-          # keyboard. The keymap only affects the menu phase;
-          # the staged distro kernel owns the keymap after the
-          # reboot sink fires.
-          EXTRA_CMDLINE: 'cloudboot.menu=1 cloudboot.menu.timeout=0 cloudboot.exit=reboot cloudboot.keymap=fr'
+          # cloudboot.keymap=fr-mac loads the Apple MacBook
+          # French AZERTY keymap via KDSKBENT before the menu
+          # prompts. Use `fr` for PC AZERTY (a few keys differ,
+          # notably §/!/@), `us` or empty for kernel default.
+          # The keymap only affects the menu phase; the staged
+          # distro kernel owns the keymap after the reboot
+          # sink fires.
+          EXTRA_CMDLINE: 'cloudboot.menu=1 cloudboot.menu.timeout=0 cloudboot.exit=reboot cloudboot.keymap=fr-mac'
           PLAN_REF: '{{.GUEST_REF}}'
           INSECURE: '1'
           ISO: '{{.ISO}}'
