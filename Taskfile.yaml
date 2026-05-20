@@ -1068,7 +1068,16 @@ tasks:
           ARCH: 'arm64'
           KERNEL: '{{.KERNEL}}'
           STUB: '{{.STUB}}'
-          CMDLINE: 'console=hvc0'
+          # Two consoles: hvc0 captures everything to the
+          # serial logFilePath (head-less debugging, grep-able);
+          # tty0 puts the same printk on the virtio-gpu
+          # framebuffer that vfkit's --gui window renders. The
+          # last entry wins for /dev/console, so tty0 becomes
+          # stdin/stdout — the menu reads keystrokes from the
+          # GUI keyboard (CONFIG_VIRTIO_INPUT=y in the cloud
+          # kernel) while the serial log continues to receive
+          # all output.
+          CMDLINE: 'console=hvc0 console=tty0'
           EXTRA_CMDLINE: 'cloudboot.menu=1 cloudboot.menu.timeout=0 cloudboot.exit=reboot'
           PLAN_REF: '{{.GUEST_REF}}'
           INSECURE: '1'
