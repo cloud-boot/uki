@@ -365,14 +365,14 @@ func TestBuildISO_Wiring(t *testing.T) {
 	}
 }
 
-// TestBuildISO_HybridGPTRecipe locks in the xorriso command shape so
-// nobody silently reverts to the pre-menu-then-reboot pure-El-Torito
-// form. The reboot sink in cloud-boot-init/ needs the appended-
-// partition layout so the ESP is a real GPT partition Linux can
-// mount r/w; reverting to `-e efiboot.img -no-emul-boot` would
-// produce an iso where the firmware-visible FAT is buried inside
-// iso9660 and unmountable as a writable filesystem.
-func TestBuildISO_HybridGPTRecipe(t *testing.T) {
+// TestBuildISO_PureElToritoRecipe locks in the xorriso command
+// shape: pure-iso9660 + El Torito, no GPT-appended partition.
+// boot.iso is immutable — the reboot sink mutates the separate
+// cloud-boot cache disk instead. Regressing to `-append_partition`
+// would reintroduce the coupling between the boot artifact and
+// its mutation surface, and would also make the iso unbootable
+// under firmwares that prefer GPT over El Torito.
+func TestBuildISO_PureElToritoRecipe(t *testing.T) {
 	dir := t.TempDir()
 	esp := filepath.Join(dir, "efiboot.img")
 	os.WriteFile(esp, []byte("FAT"), 0o644)
@@ -388,12 +388,8 @@ func TestBuildISO_HybridGPTRecipe(t *testing.T) {
 	if err := buildISO(esp, filepath.Join(dir, "out.iso")); err != nil {
 		t.Fatal(err)
 	}
-	want := []string{
-		"--interval:appended_partition_2:all::",
-		"-append_partition", "2", "C12A7328-F81F-11D2-BA4B-00A0C93EC93B",
-		"-appended_part_as_gpt",
-	}
-	for _, tok := range want {
+	wantPresent := []string{"-e", "efiboot.img", "-no-emul-boot"}
+	for _, tok := range wantPresent {
 		found := false
 		for _, a := range gotArgs {
 			if a == tok {
@@ -403,6 +399,14 @@ func TestBuildISO_HybridGPTRecipe(t *testing.T) {
 		}
 		if !found {
 			t.Errorf("xorriso args missing %q\nfull args: %v", tok, gotArgs)
+		}
+	}
+	wantAbsent := []string{"-append_partition", "-appended_part_as_gpt"}
+	for _, tok := range wantAbsent {
+		for _, a := range gotArgs {
+			if a == tok {
+				t.Errorf("xorriso args still contain %q — boot.iso must stay pure El Torito\nfull args: %v", tok, gotArgs)
+			}
 		}
 	}
 }

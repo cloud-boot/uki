@@ -943,39 +943,33 @@ tasks:
   # ----- vfkit:arm64:menu — same menu, but under real Apple VZ ----------
   #
   # vfkit:arm64:menu mirrors qemu:arm64:menu but launches the resulting
-  # boot.iso under vfkit (Apple Virtualization.framework). Three things
-  # differ from the QEMU sibling:
+  # boot.iso under vfkit (Apple Virtualization.framework). The
+  # significant deltas from the QEMU sibling:
   #
   #  1. **`cloudboot.exit=reboot`** is injected into EXTRA_CMDLINE. Under
-  #     VZ the existing kexec sink hangs the VM silently (Apple's
-  #     hypervisor traps kexec_file_load — see memory:uki-vz-constraint),
-  #     so init dispatches to the menu-then-reboot sink instead:
-  #     write \EFI\Linux\<T>-vmlinuz.efi + \EFI\Linux\<T>-initrd on the
-  #     boot.iso's writable ESP (hybrid GPT layout from commit a821be9),
-  #     write Boot0001 + prepend BootOrder, reboot(2). The next firmware
-  #     boot loads the staged target via standard LoadImage+StartImage —
-  #     a code path VZ honours natively. See memory:uki-menu-then-reboot.
+  #     VZ the existing kexec sink hangs the VM silently (kexec_file_load
+  #     traps — see memory:uki-vz-constraint), so init dispatches to the
+  #     menu-then-reboot sink: write \EFI\Linux\<T>-vmlinuz.efi +
+  #     \EFI\Linux\<T>-initrd on the writable cache disk's ESP, write
+  #     Boot0001 + prepend BootOrder, reboot(2). The next firmware boot
+  #     loads the staged target via standard LoadImage+StartImage — a
+  #     code path VZ honours natively. See memory:uki-menu-then-reboot.
   #
-  #  2. The boot.iso is attached as a plain **virtio-blk** (read-write,
-  #     not `media=cdrom,readonly=on` as under QEMU). The reboot sink
-  #     mutates the FAT partition in-place; if the iso were attached
-  #     read-only the writes would fail and nothing would boot on the
-  #     second round.
+  #  2. **boot.iso is read-only**; a separate **cache disk** carries
+  #     the writable ESP. The cache disk is a small GPT-partitioned
+  #     virtio-blk whose only partition is a FAT32 ESP named
+  #     "cloud-boot-cache" (cloud-boot-init/findESPDevice prefers it
+  #     by name over any other ESP visible to the guest). This keeps
+  #     the boot artifact byte-identical across runs (hashable,
+  #     shareable, swappable for a freshly-built iso without losing
+  #     prior state) and bounds the mutation surface to one well-
+  #     known file. The cache also survives across reboots — once
+  #     a target is staged, subsequent boots of that target don't
+  #     pay the OCI-pull cost.
   #
-  #  3. Console = **hvc0** (vfkit's virtio-serial), not ttyAMA0. Serial
-  #     output is captured to logFilePath rather than streamed to the
-  #     terminal.
-  #
-  # First-run flow: registry → push artifacts → build hybrid-GPT
-  # boot.iso → launch vfkit. The user picks a target in the menu;
-  # init fetches it from OCI (or mounts the DISK target), stages on the
-  # ESP, reboots; the VM restarts and the firmware boots the chosen
-  # target's kernel.
-  #
-  # vfkit doesn't expose a `-nographic` equivalent so we point its
-  # virtio-serial at a log file under /tmp/vz-test/vfkit/. Tail it in
-  # another terminal with `tail -F /tmp/vz-test/vfkit/menu-serial.log`
-  # to watch the menu come up.
+  #  3. Console = **hvc0** (vfkit's virtio-serial), captured to
+  #     logFilePath under /tmp/vz-test/vfkit/menu-serial.log. Tail
+  #     it in another terminal with `tail -F …` to watch the menu.
 
   vfkit:arm64:menu:
     desc: 'Boot Apple VZ via vfkit with a menu offering every supported OCI + DISK distro (no timeout). Uses cloudboot.exit=reboot.'
@@ -1010,6 +1004,8 @@ tasks:
       CIDATA: '{{.CIDATA | default "cidata.iso"}}'
       ISO: '{{.ISO | default "boot.iso"}}'
       VZ_DIR: '{{.VZ_DIR | default "/tmp/vz-test/vfkit"}}'
+      CACHE_DISK: '{{.CACHE_DISK | default "/tmp/vz-test/vfkit/menu-cache.raw"}}'
+      CACHE_DISK_SIZE_MIB: '{{.CACHE_DISK_SIZE_MIB | default "256"}}'
     preconditions:
       - sh: 'which vfkit > /dev/null'
         msg: 'vfkit not installed — `brew install vfkit`.'
@@ -1027,10 +1023,13 @@ tasks:
         fi
         until curl -sf -o /dev/null http://127.0.0.1:5000/v2/; do sleep 1; done
         echo "registry up"
-      # 2. OCI artifacts.
-      - task: push:alpine
+      # 2. OCI artifacts. push:alpine:multi assembles the
+      # multi-arch index at REPO:VER (which the plan references)
+      # — push:alpine alone only emits the per-arch tag and
+      # leaves the plan's `${local.registry}/alpine:${version}`
+      # unresolved.
+      - task: push:alpine:multi
         vars:
-          ARCH: 'arm64'
           ALPINE_VER: '{{.ALPINE_VER}}'
       - task: push:debian
         vars:
@@ -1074,18 +1073,26 @@ tasks:
           PLAN_REF: '{{.GUEST_REF}}'
           INSECURE: '1'
           ISO: '{{.ISO}}'
-      # 8. vfkit run. The boot.iso is r/w so the reboot sink can
-      # mutate the ESP partition; distro disks are attached so DISK
-      # targets work; cidata for cloud-init NoCloud datasource. The
-      # virtio-serial logFilePath captures both the menu and the
-      # post-reboot distro console.
+      # 8. Cache disk. Created on first run, reused thereafter
+      # (the script is idempotent — second run is a no-op if the
+      # disk already has a "cloud-boot-cache" partition). This is
+      # where the reboot sink stages \EFI\Linux\<target>-*; the
+      # boot.iso itself stays byte-identical across runs.
       - mkdir -p {{.VZ_DIR}}
+      - scripts/make-cache-disk.sh {{.CACHE_DISK}} {{.CACHE_DISK_SIZE_MIB}}
+      # 9. vfkit run. boot.iso is `readonly` (firmware boots it
+      # via El Torito, Linux mounts it as iso9660; nothing on it
+      # ever changes). CACHE_DISK carries the writable ESP. Distro
+      # disks for DISK targets. cidata.iso for NoCloud cloud-init.
+      # virtio-serial logFilePath captures both pre- and post-
+      # reboot console output.
       - rm -f {{.VZ_DIR}}/menu-vars.fd {{.VZ_DIR}}/menu-serial.log
       - echo "tail -F {{.VZ_DIR}}/menu-serial.log in another terminal to watch the menu + distro console"
       - >-
         vfkit --cpus 2 --memory 2048
         --bootloader efi,variable-store={{.VZ_DIR}}/menu-vars.fd,create
-        --device virtio-blk,path={{.ISO}}
+        --device virtio-blk,path={{.ISO}},readonly
+        --device virtio-blk,path={{.CACHE_DISK}}
         --device virtio-blk,path={{.DEBIAN_CLOUD}}
         --device virtio-blk,path={{.UBUNTU_CLOUD}}
         --device virtio-blk,path={{.ALPINE_CLOUD}}

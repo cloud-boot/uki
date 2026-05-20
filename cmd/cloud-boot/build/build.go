@@ -265,63 +265,50 @@ func buildESP(efi, efiName, out string) error {
 	return run("mcopy", "-i", out, efi, "::/EFI/BOOT/"+efiName)
 }
 
-// buildISO produces a hybrid ISO that is simultaneously:
+// buildISO produces a pure-iso9660 + El Torito bootable image.
+// The FAT ESP `efiboot.img` is embedded as a regular file inside
+// the iso9660 filesystem and referenced by the El Torito boot
+// catalog (`-e efiboot.img -no-emul-boot`). UEFI firmware reads
+// the boot catalog, locates the FAT image's data range, and runs
+// `\EFI\BOOT\BOOTAA64.EFI` (or BOOTX64.EFI / BOOTRISCV64.EFI) from
+// within it.
 //
-//   - El Torito bootable for plain ISO9660 firmware paths (the same
-//     code path every UEFI firmware uses to autoboot a removable
-//     "CD"-shaped device).
-//   - A GPT-partitioned block device whose partition 2 carries the
-//     EFI System Partition type GUID (C12A7328-F81F-11D2-BA4B-
-//     00A0C93EC93B). The ESP partition's bytes ARE the FAT32 image
-//     in `esp` — appended at the tail of the ISO via xorriso's
-//     -append_partition mechanism. The El Torito boot catalog uses
-//     `--interval:appended_partition_2:all::` so the firmware reads
-//     boot sectors from the same byte range that GPT exposes as
-//     partition 2 — one image, two views.
+// The boot.iso is therefore **immutable**. Any mutation the
+// menu-then-reboot sink needs to perform (writing
+// \EFI\Linux\<T>-vmlinuz.efi and \EFI\Linux\<T>-initrd for the
+// next firmware boot) lands on a **separate writable cache
+// disk** — see uki/scripts/make-cache-disk.sh and the
+// `vfkit:arm64:menu` task. The cache disk is a small GPT-
+// partitioned virtio-blk whose only partition is a FAT32 ESP
+// named "cloud-boot-cache"; cloud-boot-init's findAndMountESP
+// finds it by name, mounts r/w, stages the chosen target, then
+// reboots — firmware then loads from the cache disk via
+// Boot0001/BootOrder.
 //
-// Why this layout matters: the menu-then-reboot sink in cloud-boot-
-// init/ needs to write \EFI\Linux\<target>-* files onto the FAT
-// ESP and then call reboot(2). On the prior pure-iso9660 layout
-// the firmware-visible FAT image lived inside a read-only iso9660
-// file (efiboot.img) — Linux could not mount it as a writable
-// partition. With the hybrid GPT layout the same FAT image is
-// exposed as a real GPT partition that mounts vfat r/w under
-// Linux, so the sink can mutate it and reboot.
+// Earlier versions of this function emitted a hybrid GPT layout
+// (the FAT image appended as GPT partition 2) so the ESP was
+// itself writable; that approach worked end-to-end under VZ but
+// coupled the boot artifact and its mutation surface. Splitting
+// the two via the cache disk keeps boot.iso hashable / shareable
+// between VMs.
 //
 // See memory:uki-menu-then-reboot for the architecture rationale.
 func buildISO(esp, out string) error {
-	log.Printf("creating ISO -> %s (hybrid GPT, ESP=appended partition 2)", out)
-	if _, err := os.Stat(esp); err != nil {
-		return fmt.Errorf("esp image: %w", err)
-	}
+	log.Printf("creating ISO -> %s (pure iso9660 + El Torito, immutable)", out)
 	stage, err := os.MkdirTemp("", "iso-stage-")
 	if err != nil {
 		return err
 	}
 	defer os.RemoveAll(stage)
-	// xorriso refuses to author an iso9660 filesystem with zero
-	// files — drop a tiny README so the iso9660 portion is well-
-	// formed even though we don't put efiboot.img inside it.
-	readme := filepath.Join(stage, "README.txt")
-	if err := os.WriteFile(readme, []byte("cloud-boot bootable image. See partition 2 (ESP) for boot files.\n"), 0o644); err != nil {
+	if err := uki.Copy(filepath.Join(stage, "efiboot.img"), esp); err != nil {
 		return err
 	}
 	return run("xorriso",
 		"-as", "mkisofs",
 		"-V", "GOPXE",
 		"-o", out,
-		// El Torito boot catalog points at the GPT-appended ESP
-		// (partition 2), not at a file inside iso9660. The
-		// `--interval:appended_partition_2:all::` token tells
-		// mkisofs to use the appended partition's byte range as
-		// the El Torito boot image.
+		"-e", "efiboot.img",
 		"-no-emul-boot",
-		"-e", "--interval:appended_partition_2:all::",
-		// Append the FAT ESP as GPT partition 2 with the proper
-		// EFI System type GUID. -appended_part_as_gpt makes it a
-		// real GPT entry (vs. an MBR-only partition).
-		"-append_partition", "2", "C12A7328-F81F-11D2-BA4B-00A0C93EC93B", esp,
-		"-appended_part_as_gpt",
 		stage,
 	)
 }
