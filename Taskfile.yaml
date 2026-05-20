@@ -1090,7 +1090,13 @@ tasks:
           # kernel) while the serial log continues to receive
           # all output.
           CMDLINE: 'console=hvc0 console=tty0'
-          EXTRA_CMDLINE: 'cloudboot.menu=1 cloudboot.menu.timeout=0 cloudboot.exit=reboot'
+          # cloudboot.keymap=fr loads a minimal French AZERTY
+          # keymap via KDSKBENT before the menu prompts. Drop
+          # it (or set =us) if you're on a US/QWERTY host
+          # keyboard. The keymap only affects the menu phase;
+          # the staged distro kernel owns the keymap after the
+          # reboot sink fires.
+          EXTRA_CMDLINE: 'cloudboot.menu=1 cloudboot.menu.timeout=0 cloudboot.exit=reboot cloudboot.keymap=fr'
           PLAN_REF: '{{.GUEST_REF}}'
           INSECURE: '1'
           ISO: '{{.ISO}}'
