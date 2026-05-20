@@ -128,6 +128,48 @@ target "debian" {
   ]
 }
 
+# Debian 13.5 Live (standard flavor — minimal, no DE). Mirrors the
+# alpine target's shape: the OCI artifact carries (vmlinuz, initrd,
+# filesystem.squashfs) and cloud-boot-init auto-injects
+# `boot=live fetch=<oci-blob-url-of-squashfs>` so live-boot's initrd
+# pulls the squashfs at switch_root time. Push the artifact first:
+#
+#   task push:debian-live ARCH=amd64
+#   # OR with a desktop variant:
+#   task push:debian-live ARCH=amd64 FLAVOR=xfce
+#
+# (which fetches debian-live-13.5.0-amd64-standard.iso, extracts
+# /live/{vmlinuz,initrd.img,filesystem.squashfs}, and pushes them
+# under 127.0.0.1:5000/boot/debian-live:13.5.0-standard-amd64).
+#
+# `toram` makes live-boot copy the squashfs into RAM before
+# switch_root so the boot isn't tied to the registry's uptime past
+# the initial fetch; drop it on memory-constrained hosts. `noeject`
+# skips the eject-the-CD prompt at shutdown (we're netbooted, no CD
+# to eject).
+#
+# HTTP/2: the OCI manifest+blob pulls from cloud-boot-init happen
+# over Go's stdlib http.Client. Plaintext registries (the local
+# 127.0.0.1:5000 here) default to HTTP/1.1; export
+# REGISTRY_HTTP2_CLEARTEXT=1 before boot to opt into h2c, which
+# multiplexes the kernel/initrd/squashfs pulls onto one TCP stream
+# (saves ~3 connection roundtrips vs. HTTP/1.1).
+target "debian-live" {
+  version = "13.5.0"
+  label   = "Debian ${self.version} Live (standard, netbooted squashfs)"
+  index   = "${local.registry}/debian-live:${self.version}-standard-amd64"
+  cmdline = [
+    "console=${local.console},115200n8",
+    "console=hvc0",
+    "ip={{.IPSpec}}",
+    "live-config",
+    "noeject",
+    "toram",
+    # boot=live + fetch=<url> is injected automatically by
+    # cloud-boot-init when the manifest carries a squashfs layer.
+  ]
+}
+
 # Debian 13 generic-cloud image booted in DISK MODE. The qcow2 is
 # attached to QEMU as /dev/vda by `task qemu:arm64:debian-cloud`;
 # cloud-boot mounts /dev/vda1 (the root partition), finds the

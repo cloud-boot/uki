@@ -488,6 +488,84 @@ tasks:
         --initrd   "{{.CACHE_DIR}}/initrd.gz"
         "{{.REF}}"
 
+  # ---- Debian Live OCI target --------------------------------------------
+  #
+  # Mirrors push:alpine in shape: pulls upstream Debian Live ISO,
+  # extracts the three artefacts that drive a `boot=live fetch=<url>`
+  # boot (vmlinuz, initrd, filesystem.squashfs), and pushes them as a
+  # single OCI artifact. cloud-boot-init pulls the manifest, kexecs
+  # the kernel with the initrd, and injects `boot=live fetch=<oci-blob-url>`
+  # so live-boot's busybox wget pulls the squashfs at switch_root time
+  # — same URL-pointer pattern Alpine's modloop uses.
+  #
+  # Debian only ships official live images for amd64 (no arm64
+  # upstream); the task accepts ARCH but is realistically pinned to
+  # amd64 today. DEBIAN_LIVE_FLAVOR picks the desktop variant
+  # (standard / gnome / kde / xfce / lxde / lxqt / cinnamon / mate);
+  # defaults to standard (~2 GB, no DE, useful as a minimal live
+  # rescue target). DEBIAN_LIVE_VER pins the exact release; defaults
+  # to whatever current-live points at.
+
+  push:debian-live:
+    desc: 'Pull + push Debian Live (vmlinuz + initrd + filesystem.squashfs) for one arch. ARCH=amd64 (default), FLAVOR=standard|gnome|kde|xfce|lxde|lxqt|cinnamon|mate, DEBIAN_LIVE_VER=13.5.0 (default), REPO=127.0.0.1:5000/boot/debian-live.'
+    deps: [build]
+    vars:
+      ARCH: '{{.ARCH | default "amd64"}}'
+      DEBIAN_LIVE_VER: '{{.DEBIAN_LIVE_VER | default "13.5.0"}}'
+      FLAVOR: '{{.FLAVOR | default "standard"}}'
+      DEBIAN_LIVE_MIRROR: '{{.DEBIAN_LIVE_MIRROR | default "https://cdimage.debian.org/debian-cd/current-live"}}'
+      REPO: '{{.REPO | default "127.0.0.1:5000/boot/debian-live"}}'
+      CACHE_DIR: '{{.CACHE_DIR | default ".debian-live-cache"}}/{{.DEBIAN_LIVE_VER}}/{{.ARCH}}/{{.FLAVOR}}'
+      REF: '{{.REPO}}:{{.DEBIAN_LIVE_VER}}-{{.FLAVOR}}-{{.ARCH}}'
+      ISO_NAME: 'debian-live-{{.DEBIAN_LIVE_VER}}-{{.ARCH}}-{{.FLAVOR}}.iso'
+      ISO_URL: '{{.DEBIAN_LIVE_MIRROR}}/{{.ARCH}}/iso-hybrid/{{.ISO_NAME}}'
+    cmds:
+      - mkdir -p "{{.CACHE_DIR}}"
+      - |
+        set -e
+        iso="{{.CACHE_DIR}}/{{.ISO_NAME}}"
+        if [ -s "$iso" ]; then
+          echo "cache hit: $iso"
+        else
+          echo "fetch: {{.ISO_URL}}"
+          curl -fsSL "{{.ISO_URL}}" -o "$iso"
+        fi
+        # Extract /live/vmlinuz-*, /live/initrd.img-*, /live/filesystem.squashfs.
+        # Debian Live ISOs name vmlinuz/initrd with a suffix per
+        # arch+flavor; resolve the actual paths from the ISO listing,
+        # then read each out via osirrox.
+        cd "{{.CACHE_DIR}}"
+        # Get the actual filenames under /live/ from the ISO TOC.
+        # `xorriso -indev <iso> -find /live -type f -print -- -name 'vmlinuz*'`
+        # prints the path; the trick is the trailing `--` then matching expr.
+        VMLINUZ=$(xorriso -indev "$iso" -find /live -name 'vmlinuz*' -type f 2>/dev/null | tail -n +1 | head -1 | tr -d "'" | sed 's|^"\(.*\)"$|\1|')
+        INITRD=$(xorriso -indev "$iso" -find /live -name 'initrd.img-*' -type f 2>/dev/null | tail -n +1 | head -1 | tr -d "'" | sed 's|^"\(.*\)"$|\1|')
+        SQUASHFS=$(xorriso -indev "$iso" -find /live -name 'filesystem.squashfs' -type f 2>/dev/null | tail -n +1 | head -1 | tr -d "'" | sed 's|^"\(.*\)"$|\1|')
+        if [ -z "$VMLINUZ" ] || [ -z "$INITRD" ] || [ -z "$SQUASHFS" ]; then
+          echo "Could not find live/{vmlinuz,initrd.img,filesystem.squashfs} in $iso" >&2
+          echo "  vmlinuz=$VMLINUZ" >&2
+          echo "  initrd=$INITRD" >&2
+          echo "  squashfs=$SQUASHFS" >&2
+          exit 1
+        fi
+        echo "extracting from $iso:"
+        echo "  $VMLINUZ"
+        echo "  $INITRD"
+        echo "  $SQUASHFS"
+        # osirrox copies a file out of the ISO into the host fs.
+        xorriso -osirrox on -indev "$iso" \
+          -extract "$VMLINUZ" vmlinuz \
+          -extract "$INITRD"  initrd.img \
+          -extract "$SQUASHFS" filesystem.squashfs
+        ls -lh vmlinuz initrd.img filesystem.squashfs
+      - >-
+        ./bin/cloud-boot push artifact
+        --platform "linux/{{.ARCH}}"
+        --kernel   "{{.CACHE_DIR}}/vmlinuz"
+        --initrd   "{{.CACHE_DIR}}/initrd.img"
+        --squashfs "{{.CACHE_DIR}}/filesystem.squashfs"
+        "{{.REF}}"
+
   push:debian:multi:
     desc: 'Pull + push Debian for amd64 AND arm64, then assemble a multi-arch index at REPO:DEBIAN_VER.'
     deps: [build]

@@ -26,6 +26,7 @@ type Opts struct {
 	Modules  string
 	Modloop  string
 	Apkovl   string
+	Squashfs string
 	Cmdline  string
 	Ref      string
 }
@@ -49,6 +50,7 @@ func Cmd() *cobra.Command {
 	f.StringVar(&o.Modules, "modules", "", "path to modules cpio.gz (optional)")
 	f.StringVar(&o.Modloop, "modloop", "", "path to a raw squashfs blob (Alpine modloop-virt or equivalent; optional)")
 	f.StringVar(&o.Apkovl, "apkovl", "", "path to an Alpine apkovl tar.gz overlay (optional)")
+	f.StringVar(&o.Squashfs, "squashfs", "", "path to a Debian/Ubuntu live filesystem.squashfs (optional)")
 	f.StringVar(&o.Cmdline, "cmdline", "", "kernel cmdline payload (optional)")
 	_ = cmd.MarkFlagRequired("platform")
 	return cmd
@@ -63,8 +65,8 @@ func Run(o Opts) error {
 	if err != nil {
 		return err
 	}
-	if o.Kernel == "" && o.Initrd == "" && o.Modules == "" && o.Modloop == "" && o.Apkovl == "" && o.Cmdline == "" {
-		return fmt.Errorf("artifact: at least one of --kernel/--initrd/--modules/--modloop/--apkovl/--cmdline is required")
+	if o.Kernel == "" && o.Initrd == "" && o.Modules == "" && o.Modloop == "" && o.Apkovl == "" && o.Squashfs == "" && o.Cmdline == "" {
+		return fmt.Errorf("artifact: at least one of --kernel/--initrd/--modules/--modloop/--apkovl/--squashfs/--cmdline is required")
 	}
 	ref, err := oci.ParseRef(o.Ref)
 	if err != nil {
@@ -109,6 +111,9 @@ func Run(o Opts) error {
 		return err
 	}
 	if err := add(o.Apkovl, oci.MediaTypeApkovl, "apkovl"); err != nil {
+		return err
+	}
+	if err := add(o.Squashfs, oci.MediaTypeSquashfs, "squashfs"); err != nil {
 		return err
 	}
 	if o.Cmdline != "" {
