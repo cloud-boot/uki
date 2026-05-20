@@ -198,6 +198,41 @@ target "debian-cloud" {
   }
 }
 
+# Ubuntu Noble 24.04 cloud image (disk mode). The image ships pre-
+# stamped with ext4 LABEL=cloudimg-rootfs — same label Debian's image
+# carries after `task label:debian:cloud`, so when both are attached
+# to the same VM we identify Ubuntu's rootfs by its UUID instead
+# (LABEL= would pick whichever partition the scanner sees first).
+# `qemu:arm64:menu` knows the per-image UUID; override here if you
+# rebuild from a fresh upstream pull (`task fetch:ubuntu:cloud` then
+# inspect with `cloud-boot label --part 0 ... --inspect`).
+target "ubuntu-cloud" {
+  version = "24.04"
+  label   = "Ubuntu ${self.version} (Noble) cloud image"
+  cmdline = "console=${local.console},115200n8 console=hvc0 console=tty0 root=UUID=aebab659-769e-4072-8044-8530b0129879 ro"
+  disk {
+    device = "UUID=aebab659-769e-4072-8044-8530b0129879"
+    fs     = "ext4"
+  }
+}
+
+# Alpine 3.21 AWS cloud image (disk mode). Alpine's image has the
+# rootfs at partition 2 (partition 1 is a tiny 512 KiB FAT ESP) and
+# ext4 label "/", which the LABEL= resolver can't disambiguate from
+# other ext4 volumes — use the partition UUID instead. The cmdline
+# triplet `modules=virtio_pci,virtio_blk,sd-mod,usb-storage,ext4`
+# is what Alpine's initramfs init-script needs to load the right
+# block-device drivers before mounting root.
+target "alpine-cloud" {
+  version = "3.21"
+  label   = "Alpine ${self.version} cloud image (AWS variant)"
+  cmdline = "console=${local.console},115200n8 console=hvc0 root=UUID=289ff9af-f9c0-4cb2-9e08-657b651e6961 modules=virtio_pci,virtio_blk,sd-mod,usb-storage,ext4 rw"
+  disk {
+    device = "UUID=289ff9af-f9c0-4cb2-9e08-657b651e6961"
+    fs     = "ext4"
+  }
+}
+
 target "primary" {
   label   = "Production Linux 6.6 (OCI)"
   index   = "${local.registry}/linux:6.6"

@@ -660,6 +660,58 @@ tasks:
         fi
         ls -lh "{{.IMG}}"
 
+  fetch:ubuntu:cloud:
+    desc: 'Download Ubuntu Noble genericcloud raw image. ARCH=arm64|amd64.'
+    requires:
+      vars: [ARCH]
+    vars:
+      UBUNTU_CODE: '{{.UBUNTU_CODE | default "noble"}}'
+      CACHE_DIR: '{{.CACHE_DIR | default ".ubuntu-cache"}}/{{.UBUNTU_CODE}}/{{.ARCH}}'
+      RAW: '{{.RAW | default (printf "%s/genericcloud.raw" .CACHE_DIR)}}'
+    cmds:
+      - mkdir -p "{{.CACHE_DIR}}"
+      - |
+        set -e
+        if [ -s "{{.RAW}}" ]; then
+          echo "cache hit: {{.RAW}}"
+        else
+          # Canonical's cloud-images.ubuntu.com publishes both raw .img
+          # and qcow2; we grab the raw flavour since cloud-boot-init
+          # mounts it directly via virtio-blk.
+          arch="{{.ARCH}}"
+          # Ubuntu uses "arm64" / "amd64" in the URL; matches our ARCH input.
+          url="https://cloud-images.ubuntu.com/{{.UBUNTU_CODE}}/current/{{.UBUNTU_CODE}}-server-cloudimg-${arch}.img"
+          echo "fetch: $url (qcow2)"
+          curl -fsSL "$url" -o "{{.RAW}}.qcow2"
+          qemu-img convert -O raw "{{.RAW}}.qcow2" "{{.RAW}}"
+          rm -f "{{.RAW}}.qcow2"
+        fi
+        ls -lh "{{.RAW}}"
+
+  fetch:alpine:cloud:
+    desc: 'Download Alpine AWS cloud image (VHD), convert to raw. ARCH=arm64 (default) | amd64.'
+    vars:
+      ARCH: '{{.ARCH | default "arm64"}}'
+      ALPINE_VER: '{{.ALPINE_VER | default "3.21.0"}}'
+      ALPINE_AARCH: '{{if eq .ARCH "amd64"}}x86_64{{else if eq .ARCH "arm64"}}aarch64{{else}}{{.ARCH}}{{end}}'
+      ALPINE_VER_SERIES: '{{regexReplaceAll "^([0-9]+\\.[0-9]+)\\..*" .ALPINE_VER "${1}"}}'
+      CACHE_DIR: '{{.CACHE_DIR | default ".alpine-cache"}}/{{.ALPINE_VER_SERIES}}/{{.ALPINE_AARCH}}/cloud'
+      RAW: '{{.RAW | default (printf "%s/alpine.raw" .CACHE_DIR)}}'
+    cmds:
+      - mkdir -p "{{.CACHE_DIR}}"
+      - |
+        set -e
+        if [ -s "{{.RAW}}" ]; then
+          echo "cache hit: {{.RAW}}"
+        else
+          url="https://dl-cdn.alpinelinux.org/alpine/v{{.ALPINE_VER_SERIES}}/releases/cloud/aws_alpine-{{.ALPINE_VER}}-{{.ALPINE_AARCH}}-uefi-cloudinit-metal-r1.vhd"
+          echo "fetch: $url"
+          curl -fsSL "$url" -o "{{.RAW}}.vhd"
+          qemu-img convert -f vpc -O raw "{{.RAW}}.vhd" "{{.RAW}}"
+          rm -f "{{.RAW}}.vhd"
+        fi
+        ls -lh "{{.RAW}}"
+
   cidata:
     desc: 'Generate a NoCloud cidata ISO from examples/cloud-init/{user-data,meta-data}.yaml. OUT=cidata.iso.'
     vars:
@@ -738,6 +790,150 @@ tasks:
         -drive if=pflash,format=raw,readonly=on,file={{.OVMF_CODE_ARM64}}
         -drive if=pflash,format=raw,file={{.OVMF_VARS_ARM64}}
         -drive if=virtio,format=raw,file={{.CLOUD_IMG}}
+        -drive if=virtio,format=raw,readonly=on,file={{.CIDATA}}
+        -drive if=virtio,format=raw,readonly=on,file={{.ISO}},media=cdrom
+        -netdev user,id=n0 -device virtio-net-device,netdev=n0
+        -object rng-random,id=rng0,filename=/dev/urandom -device virtio-rng-pci,rng=rng0
+        -nographic -serial mon:stdio
+
+  # ----- "all-distros menu" smoke task ------------------------------------
+  #
+  # qemu:arm64:menu boots the cloud-boot bootstrap kernel under QEMU with a
+  # plan that exposes every supported distro, OCI + DISK, in an interactive
+  # menu — no timeout (the menu waits indefinitely for user input).
+  #
+  # OCI targets (OCI artifact pulls served from the local Distribution
+  # registry at 127.0.0.1:5000):
+  #   - alpine          (Alpine 3.21 netboot: vmlinuz-virt + initramfs-virt
+  #                       + modloop-virt + apkovl)
+  #   - alpine-debug    (same as alpine, with debug_init=yes)
+  #   - debian          (Debian 13 netboot installer: linux + initrd.gz)
+  #   - debian-live     (Debian 13.5 Live amd64 standard: vmlinuz + initrd
+  #                       + filesystem.squashfs; live-boot fetches the
+  #                       squashfs via auto-injected `fetch=<oci-blob-url>`)
+  #
+  # DISK targets (cloud-boot-init mounts the partition + locates
+  # /boot/vmlinuz-* directly — bootstrap kernel is ext4-only, so xfs
+  # AlmaLinux and btrfs MicroOS aren't included here; for those use the
+  # pure-UEFI loader in ../loader/ which has its own xfs+btrfs walkers):
+  #   - debian-cloud    (Debian Trixie genericcloud, ext4 LABEL=cloudimg-rootfs)
+  #   - ubuntu-cloud    (Ubuntu Noble genericcloud, ext4 by UUID)
+  #   - alpine-cloud    (Alpine 3.21 AWS image, ext4 partition 2 by UUID)
+  #
+  # The menu is forced on + un-timed via the kernel cmdline knobs
+  # `cloudboot.menu=1 cloudboot.menu.timeout=0` (a 0 timeout makes the
+  # menu loop block on the input channel forever, see init/internal/menu).
+  #
+  # Plumbing this task does:
+  #   1. Ensures the local registry container is running (idempotent).
+  #   2. Pushes the four OCI artifacts above.
+  #   3. Pushes the plan as 127.0.0.1:5000/boot/plan:vz-test.
+  #   4. Stamps the ext4 LABEL on the Debian cloud image (idempotent).
+  #   5. Fetches Ubuntu Noble + Alpine 3.21 cloud images if missing.
+  #   6. Builds boot.iso embedding the plan ref + cloud-boot-init.
+  #   7. Generates the cloud-init NoCloud cidata ISO.
+  #   8. Runs qemu-system-aarch64 with all six images attached, virtio-net
+  #      NAT (10.0.2.2 = host → reachable as 192.168.64.1 inside the plan).
+  qemu:arm64:menu:
+    desc: 'Boot QEMU with a menu offering every supported OCI + DISK distro (no timeout).'
+    deps: [build]
+    vars:
+      OVMF_CODE_ARM64: '{{.OVMF_CODE_ARM64 | default "/opt/homebrew/share/qemu/edk2-aarch64-code.fd"}}'
+      OVMF_VARS_ARM64: '{{.OVMF_VARS_ARM64 | default ".ovmf_vars_arm64.fd"}}'
+      STUB: '{{.STUB | default "../../go-coff/stub/BOOTAA64.EFI"}}'
+      KERNEL: '{{.KERNEL | default "../kernel/Image"}}'
+      PLAN: '{{.PLAN | default "examples/plan-vz-test.hcl"}}'
+      PLAN_REF: '{{.PLAN_REF | default "127.0.0.1:5000/boot/plan:vz-test"}}'
+      DEBIAN_VER: '{{.DEBIAN_VER | default "13"}}'
+      DEBIAN_CODE: '{{.DEBIAN_CODE | default "trixie"}}'
+      DEBIAN_LIVE_VER: '{{.DEBIAN_LIVE_VER | default "13.5.0"}}'
+      ALPINE_VER: '{{.ALPINE_VER | default "3.21"}}'
+      DEBIAN_CLOUD: '.debian-cache/{{.DEBIAN_CODE}}/arm64/genericcloud.labeled.raw'
+      UBUNTU_CLOUD: '.ubuntu-cache/noble/arm64/genericcloud.raw'
+      ALPINE_CLOUD: '.alpine-cache/3.21/aarch64/cloud/alpine.raw'
+      CIDATA: '{{.CIDATA | default "cidata.iso"}}'
+      ISO: '{{.ISO | default "boot.iso"}}'
+    preconditions:
+      - sh: 'test -f "{{.KERNEL}}"'
+        msg: 'bootstrap kernel missing at {{.KERNEL}} — run `task kernel:arm64` first.'
+      - sh: 'test -f "{{.STUB}}"'
+        msg: 'UEFI stub missing at {{.STUB}} — build it in ../go-coff/stub.'
+      - sh: 'test -f "{{.OVMF_CODE_ARM64}}"'
+        msg: 'aarch64 EDK2 code image not found at {{.OVMF_CODE_ARM64}}'
+      - sh: 'docker info > /dev/null 2>&1'
+        msg: 'Docker is not available; the local registry container needs it.'
+    cmds:
+      # 1. Local OCI registry. The `registry` task uses `docker run -d --rm`
+      # which fails on the second invocation — wrap it so the menu task is
+      # itself idempotent.
+      - |
+        if ! docker ps --format '{{`{{.Names}}`}}' | grep -q '^cloud-boot-registry$'; then
+          docker run -d --rm --name cloud-boot-registry -p 5000:5000 registry:3.0.0
+        fi
+        until curl -sf -o /dev/null http://127.0.0.1:5000/v2/; do sleep 1; done
+        echo "registry up"
+      # 2. OCI artifacts.
+      - task: push:alpine
+        vars:
+          ARCH: 'arm64'
+          ALPINE_VER: '{{.ALPINE_VER}}'
+      - task: push:debian
+        vars:
+          ARCH: 'arm64'
+          DEBIAN_VER: '{{.DEBIAN_VER}}'
+          DEBIAN_CODE: '{{.DEBIAN_CODE}}'
+      - task: push:debian-live
+        vars:
+          ARCH: 'amd64'
+          DEBIAN_LIVE_VER: '{{.DEBIAN_LIVE_VER}}'
+          FLAVOR: 'standard'
+      # 3. Plan.
+      - task: push:plan
+        vars: {PLAN: '{{.PLAN}}', PLAN_REF: '{{.PLAN_REF}}'}
+      # 4-5. Disk images.
+      - task: label:debian:cloud
+        vars: {ARCH: 'arm64', DEBIAN_VER: '{{.DEBIAN_VER}}', DEBIAN_CODE: '{{.DEBIAN_CODE}}'}
+      - task: fetch:ubuntu:cloud
+        vars: {ARCH: 'arm64'}
+      - task: fetch:alpine:cloud
+        vars: {ARCH: 'arm64', ALPINE_VER: '3.21.0'}
+      # 6. cloud-init seed (used by the Debian + Ubuntu cloud targets).
+      - task: cidata
+        vars: {OUT: '{{.CIDATA}}'}
+      # 7. Boot ISO. EXTRA_CMDLINE forces the menu on and disables its
+      # 5s default timeout — `cloudboot.menu.timeout=0` makes the menu
+      # wait forever for user input (no auto-select).
+      - task: iso
+        vars:
+          ARCH: 'arm64'
+          KERNEL: '{{.KERNEL}}'
+          STUB: '{{.STUB}}'
+          CMDLINE: 'console=ttyAMA0'
+          EXTRA_CMDLINE: 'cloudboot.menu=1 cloudboot.menu.timeout=0'
+          PLAN_REF: '{{.PLAN_REF}}'
+          INSECURE: '1'
+          ISO: '{{.ISO}}'
+      - test -f "{{.OVMF_VARS_ARM64}}" || dd if=/dev/zero of="{{.OVMF_VARS_ARM64}}" bs=1m count=64 status=none
+      # 8. QEMU run. Drive ordering (relevant only when the plan refers to
+      # /dev/vdN literals; the DISK targets above resolve by ext4 UUID so
+      # ordering is informational):
+      #   -drive 0: pflash (OVMF code, RO)
+      #   -drive 1: pflash (OVMF vars, RW)
+      #   -drive 2: Debian cloud image → /dev/vda
+      #   -drive 3: Ubuntu cloud image → /dev/vdb
+      #   -drive 4: Alpine cloud image → /dev/vdc
+      #   -drive 5: cidata.iso         → /dev/vdd (NoCloud)
+      #   -drive 6: boot.iso (cdrom)   → /dev/vde, also the UEFI boot device
+      - >-
+        qemu-system-aarch64
+        -machine virt,gic-version=max,accel=hvf:tcg
+        -cpu max
+        -m 2048 -smp 2
+        -drive if=pflash,format=raw,readonly=on,file={{.OVMF_CODE_ARM64}}
+        -drive if=pflash,format=raw,file={{.OVMF_VARS_ARM64}}
+        -drive if=virtio,format=raw,file={{.DEBIAN_CLOUD}}
+        -drive if=virtio,format=raw,file={{.UBUNTU_CLOUD}}
+        -drive if=virtio,format=raw,file={{.ALPINE_CLOUD}}
         -drive if=virtio,format=raw,readonly=on,file={{.CIDATA}}
         -drive if=virtio,format=raw,readonly=on,file={{.ISO}},media=cdrom
         -netdev user,id=n0 -device virtio-net-device,netdev=n0
