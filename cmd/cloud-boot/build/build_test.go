@@ -122,7 +122,7 @@ func TestBuildInitramfs(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := filepath.Join(dir, "ramfs.cpio.gz")
-	if err := buildInitramfs(initBin, out, []byte("cosign-pem")); err != nil {
+	if err := buildInitramfs(initBin, out, []byte("cosign-pem"), []byte("PLAN-HCL-CONTENT")); err != nil {
 		t.Fatal(err)
 	}
 	f, _ := os.Open(out)
@@ -133,7 +133,7 @@ func TestBuildInitramfs(t *testing.T) {
 	}
 	defer gz.Close()
 	raw, _ := io.ReadAll(gz)
-	for _, want := range []string{"FAKE-INIT", "cosign-pem", "init", "etc/cosign.pub"} {
+	for _, want := range []string{"FAKE-INIT", "cosign-pem", "init", "etc/cosign.pub", "PLAN-HCL-CONTENT", "etc/cloud-boot/plan.hcl"} {
 		if !strings.Contains(string(raw), want) {
 			t.Errorf("missing %q in cpio output", want)
 		}
@@ -144,14 +144,14 @@ func TestBuildInitramfs_NoCosign(t *testing.T) {
 	dir := t.TempDir()
 	initBin := filepath.Join(dir, "init")
 	os.WriteFile(initBin, []byte("X"), 0o755)
-	if err := buildInitramfs(initBin, filepath.Join(dir, "r.cpio.gz"), nil); err != nil {
+	if err := buildInitramfs(initBin, filepath.Join(dir, "r.cpio.gz"), nil, nil); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestBuildInitramfs_ReadInitBinFails(t *testing.T) {
 	dir := t.TempDir()
-	if err := buildInitramfs(filepath.Join(dir, "missing"), filepath.Join(dir, "out"), nil); err == nil {
+	if err := buildInitramfs(filepath.Join(dir, "missing"), filepath.Join(dir, "out"), nil, nil); err == nil {
 		t.Fatal("expected error")
 	}
 }
@@ -365,14 +365,14 @@ func TestBuildISO_Wiring(t *testing.T) {
 	}
 }
 
-// TestBuildISO_PureElToritoRecipe locks in the xorriso command
-// shape: pure-iso9660 + El Torito, no GPT-appended partition.
-// boot.iso is immutable — the reboot sink mutates the separate
-// cloud-boot cache disk instead. Regressing to `-append_partition`
-// would reintroduce the coupling between the boot artifact and
-// its mutation surface, and would also make the iso unbootable
-// under firmwares that prefer GPT over El Torito.
-func TestBuildISO_PureElToritoRecipe(t *testing.T) {
+// TestBuildISO_HybridGPTRecipe locks in the xorriso command shape:
+// El Torito + GPT-appended ESP. The hybrid layout is what gives
+// the iso an MBR signature at offset 510 (`0x55 0xAA`) which Apple
+// Virtualization.framework requires on every storage device, or
+// vfkit refuses to launch with "Invalid storage device attachment".
+// Reverting to pure `-e efiboot.img -no-emul-boot` produces a
+// zero-MBR iso that QEMU/OVMF accepts but VZ rejects.
+func TestBuildISO_HybridGPTRecipe(t *testing.T) {
 	dir := t.TempDir()
 	esp := filepath.Join(dir, "efiboot.img")
 	os.WriteFile(esp, []byte("FAT"), 0o644)
@@ -388,8 +388,12 @@ func TestBuildISO_PureElToritoRecipe(t *testing.T) {
 	if err := buildISO(esp, filepath.Join(dir, "out.iso")); err != nil {
 		t.Fatal(err)
 	}
-	wantPresent := []string{"-e", "efiboot.img", "-no-emul-boot"}
-	for _, tok := range wantPresent {
+	want := []string{
+		"--interval:appended_partition_2:all::",
+		"-append_partition", "2", "C12A7328-F81F-11D2-BA4B-00A0C93EC93B",
+		"-appended_part_as_gpt",
+	}
+	for _, tok := range want {
 		found := false
 		for _, a := range gotArgs {
 			if a == tok {
@@ -399,14 +403,6 @@ func TestBuildISO_PureElToritoRecipe(t *testing.T) {
 		}
 		if !found {
 			t.Errorf("xorriso args missing %q\nfull args: %v", tok, gotArgs)
-		}
-	}
-	wantAbsent := []string{"-append_partition", "-appended_part_as_gpt"}
-	for _, tok := range wantAbsent {
-		for _, a := range gotArgs {
-			if a == tok {
-				t.Errorf("xorriso args still contain %q — boot.iso must stay pure El Torito\nfull args: %v", tok, gotArgs)
-			}
 		}
 	}
 }

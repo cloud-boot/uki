@@ -220,13 +220,13 @@ tasks:
           COSIGN_KEY: '{{.COSIGN_KEY}}'
 
   iso:
-    desc: 'Build a bootable UEFI ISO. Required: KERNEL, STUB, and one of PLAN_REF or IMAGE.'
+    desc: 'Build a bootable UEFI ISO. Required: KERNEL, STUB, and one of PLAN_FILE / PLAN_REF / IMAGE.'
     deps: [build]
     requires:
       vars: [KERNEL, STUB]
     preconditions:
-      - sh: 'test -n "{{.PLAN_REF}}{{.IMAGE}}"'
-        msg: 'set PLAN_REF=<plan-ref> or IMAGE=<image-ref>'
+      - sh: 'test -n "{{.PLAN_FILE}}{{.PLAN_REF}}{{.IMAGE}}"'
+        msg: 'set PLAN_FILE=<path> (embedded), PLAN_REF=<oci-ref>, or IMAGE=<image-ref>'
     cmds:
       - >-
         ./bin/cloud-boot build
@@ -235,7 +235,9 @@ tasks:
         --stub    "{{.STUB}}"
         --cmdline "{{.CMDLINE}}"
         {{if .EXTRA_CMDLINE}}--extra-cmdline "{{.EXTRA_CMDLINE}}"{{end}}
-        {{if .PLAN_REF}}--plan "{{.PLAN_REF}}"{{else}}--image "{{.IMAGE}}"{{end}}
+        {{if .PLAN_FILE}}--plan-file "{{.PLAN_FILE}}"{{end}}
+        {{if .PLAN_REF}}--plan "{{.PLAN_REF}}"{{end}}
+        {{if and (not .PLAN_FILE) (not .PLAN_REF) .IMAGE}}--image "{{.IMAGE}}"{{end}}
         {{if .TARGET}}--target "{{.TARGET}}"{{end}}
         {{if eq .INSECURE "1"}}--insecure{{end}}
         {{if eq .VERBOSE "1"}}--verbose{{end}}
@@ -751,6 +753,17 @@ tasks:
         -graft-points
         "/user-data={{.USER_DATA}}"
         "/meta-data={{.META_DATA}}"
+      # Apple Virtualization.framework refuses to attach a storage
+      # device whose first sector lacks the MBR signature
+      # 0x55 0xAA at offset 510 ("Invalid storage device
+      # attachment"). xorriso's default iso9660 output zeros that
+      # region, so we stamp the signature in directly. The first
+      # 32 KiB of an iso9660 image is reserved for the system area
+      # (boot block) by spec; writing two bytes at offset 510 is
+      # within that reserved range and doesn't affect cloud-init's
+      # NoCloud datasource detection (which reads the CIDATA
+      # volume label from the iso9660 PVD at sector 16+).
+      - printf '\x55\xaa' | dd of="{{.OUT}}" bs=1 seek=510 count=2 conv=notrunc status=none
       - ls -lh "{{.OUT}}"
 
   # qemu:arm64:debian-cloud rolls together: build the cloud-boot ISO if
@@ -1003,13 +1016,10 @@ tasks:
       # sink runs cleanly under vfkit.
       KERNEL: '{{.KERNEL | default "../kernel/Image"}}'
       PLAN: '{{.PLAN | default "examples/plan-vz-test.hcl"}}'
-      # PUSH_REF: where the host CLI pushes the plan (loopback,
-      # always available). GUEST_REF: where the in-VM init pulls
-      # from (NAT bridge gateway IP, 192.168.64.1 is vfkit's
-      # default). Both URLs hit the same registry container (the
-      # docker `-p 5000:5000` bind covers every host interface).
-      PUSH_REF: '{{.PUSH_REF | default "127.0.0.1:5000/boot/plan:vz-test"}}'
-      GUEST_REF: '{{.GUEST_REF | default "192.168.64.1:5000/boot/plan:vz-test"}}'
+      # No PLAN_REF needed — the plan is embedded into the iso via
+      # PLAN_FILE (see iso step below). Targets in the plan still
+      # reference OCI artifacts on 192.168.64.1:5000 (vfkit's NAT
+      # gateway), which the docker registry on the host serves.
       DEBIAN_VER: '{{.DEBIAN_VER | default "13"}}'
       DEBIAN_CODE: '{{.DEBIAN_CODE | default "trixie"}}'
       DEBIAN_LIVE_VER: '{{.DEBIAN_LIVE_VER | default "13.5.0"}}'
@@ -1057,11 +1067,11 @@ tasks:
           ARCH: 'amd64'
           DEBIAN_LIVE_VER: '{{.DEBIAN_LIVE_VER}}'
           FLAVOR: 'standard'
-      # 3. Plan. Pushed to PUSH_REF (loopback) — the registry
-      # container is reachable on the host via 127.0.0.1:5000 AND
-      # via 192.168.64.1:5000 (it binds 0.0.0.0:5000).
-      - task: push:plan
-        vars: {PLAN: '{{.PLAN}}', PLAN_REF: '{{.PUSH_REF}}'}
+      # 3. Plan. NOT pushed to OCI — embedded directly into the
+      # iso via `cloud-boot build --plan-file` so the menu works
+      # even before the network is up. The plan still references
+      # OCI artifacts (kernels, initrds), but the plan document
+      # itself ships in the initramfs at /etc/cloud-boot/plan.hcl.
       # 4-5. Disk images for DISK targets.
       - task: label:debian:cloud
         vars: {ARCH: 'arm64', DEBIAN_VER: '{{.DEBIAN_VER}}', DEBIAN_CODE: '{{.DEBIAN_CODE}}'}
@@ -1072,13 +1082,11 @@ tasks:
       # 6. cloud-init seed.
       - task: cidata
         vars: {OUT: '{{.CIDATA}}'}
-      # 7. Boot ISO. EXTRA_CMDLINE forces the menu on + disables timeout
-      # AND switches the exit sink to "reboot" so init does
-      # menu-then-reboot rather than kexec (kexec_file_load traps under
-      # VZ — see memory:uki-vz-constraint). The iso bakes
-      # PLAN_REF=GUEST_REF into the cmdline so the in-VM init dials
-      # the host via the NAT bridge gateway (192.168.64.1), not the
-      # loopback ref the host CLI uses for pushing.
+      # 7. Boot ISO. EXTRA_CMDLINE forces the menu on + disables
+      # timeout AND switches the exit sink to "reboot" so init does
+      # menu-then-reboot rather than kexec. The plan is embedded
+      # via PLAN_FILE (no cloudboot.plan= on the cmdline; init
+      # falls back to /etc/cloud-boot/plan.hcl).
       - task: iso
         vars:
           ARCH: 'arm64'
@@ -1102,7 +1110,7 @@ tasks:
           # distro kernel owns the keymap after the reboot
           # sink fires.
           EXTRA_CMDLINE: 'cloudboot.menu=1 cloudboot.menu.timeout=0 cloudboot.exit=reboot cloudboot.keymap=fr-mac'
-          PLAN_REF: '{{.GUEST_REF}}'
+          PLAN_FILE: '{{.PLAN}}'
           INSECURE: '1'
           ISO: '{{.ISO}}'
       # 8. Cache disk. Created on first run, reused thereafter

@@ -27,10 +27,10 @@ var ArchProfiles = map[string]ArchProfile{
 // Opts is the resolved input to Build. Cobra populates it from the flags
 // below; tests can drive Build() directly with a struct literal.
 type Opts struct {
-	Arch                                                                        ArchProfile
-	Kernel, Stub, Cmdline, Extra, Image, PlanRef, Target, Uname, Out, CosignKey string
-	WorkDir                                                                     string
-	Keep, Insec, Verbose                                                        bool
+	Arch                                                                                  ArchProfile
+	Kernel, Stub, Cmdline, Extra, Image, PlanRef, PlanFile, Target, Uname, Out, CosignKey string
+	WorkDir                                                                               string
+	Keep, Insec, Verbose                                                                  bool
 }
 
 // Cmd returns the `cloud-boot build` cobra subcommand.
@@ -42,6 +42,7 @@ func Cmd() *cobra.Command {
 		cmdline   string
 		image     string
 		planRef   string
+		planFile  string
 		target    string
 		extra     string
 		uname     string
@@ -60,8 +61,14 @@ initramfs, assemble a UKI (.linux + .initrd + .cmdline + …) via the
 go-coff/pe library, stage a FAT16 EFI System Partition, and produce a
 UEFI-bootable El Torito ISO with xorriso.
 
-Exactly one of --plan or --image must be set. --plan is the recommended
-path; --image keeps the legacy single-manifest flow.`,
+At least one of --plan-file, --plan or --image must be set.
+--plan-file embeds the HCL plan into the initramfs at
+/etc/cloud-boot/plan.hcl (no runtime OCI fetch for the plan
+itself, though the targets it references can still pull
+artifacts from a registry); --plan keeps the OCI-fetch path;
+--image is the legacy single-manifest shorthand. --plan-file
+and --plan can be combined to embed a default but allow a
+runtime cmdline override.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			prof, ok := ArchProfiles[arch]
 			if !ok {
@@ -70,8 +77,11 @@ path; --image keeps the legacy single-manifest flow.`,
 			if kernel == "" {
 				return fmt.Errorf("--kernel is required")
 			}
-			if (planRef == "") == (image == "") {
-				return fmt.Errorf("exactly one of --plan or --image must be set")
+			if planFile == "" && planRef == "" && image == "" {
+				return fmt.Errorf("at least one of --plan-file, --plan or --image must be set")
+			}
+			if planRef != "" && image != "" {
+				return fmt.Errorf("--plan and --image are mutually exclusive")
 			}
 			if stub == "" {
 				stub = defaultStub(prof.StubName)
@@ -81,9 +91,9 @@ path; --image keeps the legacy single-manifest flow.`,
 			}
 			return Build(Opts{
 				Arch: prof, Kernel: kernel, Stub: stub, Cmdline: cmdline,
-				Extra: extra, Image: image, PlanRef: planRef, Target: target,
-				Uname: uname, Out: out, WorkDir: workDir, Keep: keep,
-				Insec: insec, Verbose: verbose, CosignKey: cosignKey,
+				Extra: extra, Image: image, PlanRef: planRef, PlanFile: planFile,
+				Target: target, Uname: uname, Out: out, WorkDir: workDir,
+				Keep: keep, Insec: insec, Verbose: verbose, CosignKey: cosignKey,
 			})
 		},
 	}
@@ -94,6 +104,7 @@ path; --image keeps the legacy single-manifest flow.`,
 	f.StringVar(&cmdline, "cmdline", "console=ttyS0", "kernel cmdline (augmented with cloudboot.* keys; 'quiet' injected unless --verbose)")
 	f.StringVar(&image, "image", "", "OCI ref of a single image (legacy mode)")
 	f.StringVar(&planRef, "plan", "", "OCI ref of an HCL boot plan (preferred)")
+	f.StringVar(&planFile, "plan-file", "", "path to an HCL plan to embed at /etc/cloud-boot/plan.hcl in the initramfs (no OCI fetch needed for the plan itself)")
 	f.StringVar(&target, "target", "", "plan target name (sets cloudboot.target=)")
 	f.StringVar(&extra, "extra-cmdline", "", "additional cmdline parameters")
 	f.StringVar(&uname, "uname", "6.6.0-cloud-boot", "kernel version label embedded in UKI .uname")
