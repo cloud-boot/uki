@@ -87,6 +87,11 @@ target "alpine" {
     # through busybox `* foo: ok.` printk-bypass output. Pick the
     # `alpine-debug` target below if you want the full firehose.
     "quiet",
+    # consoleblank=0 keeps the framebuffer VT visible after boot.
+    # Default is 600 s (10 min), which under vfkit --gui means the
+    # window goes black 10 minutes after the last keystroke and
+    # only revives on the next key — easy to mistake for a hang.
+    "consoleblank=0",
     "ip={{.IPSpec}}",
     "alpine_repo=${local.alpine_repo}/v${self.version}/main",
   ]

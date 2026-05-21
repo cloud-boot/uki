@@ -443,7 +443,7 @@ tasks:
         ::sysinit:/sbin/openrc sysinit
         ::sysinit:/sbin/openrc boot
         ::wait:/sbin/openrc default
-        tty1::respawn:/sbin/getty 38400 tty1
+        tty1::respawn:/sbin/getty -L 0 tty1 linux
         ::ctrlaltdel:/sbin/reboot
         ::shutdown:/sbin/openrc shutdown
         EOF
