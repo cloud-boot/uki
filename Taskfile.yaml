@@ -417,39 +417,32 @@ tasks:
         # honour this overlay rather than treat it as random files. Its
         # mere presence is enough.
         : > "$stage/etc/.default_boot_services"
-        # Auto-login root on every console alpine might reach us
-        # through — drop straight to a shell after boot. We mark
-        # these in inittab; setup-alpine normally writes this.
+        # Minimal inittab: only the openrc bootstrap + VT1
+        # getty are listed explicitly. The serial-console
+        # getty lines (ttyAMA0/ttyS0/hvc0) are deliberately
+        # NOT pre-supplied — Alpine's initramfs `/init` runs
+        # `setup_inittab_console` after the apkovl is
+        # extracted, which probes `stty -g -F /dev/$tty` for
+        # each `console=` cmdline entry and appends a getty
+        # line only for the devices that actually open
+        # cleanly. Letting it drive means QEMU/virt gets a
+        # ttyAMA0 line, vfkit/VZ gets an hvc0 line, QEMU/q35
+        # gets a ttyS0 line, and none of them gets a getty
+        # respawn loop on a device that doesn't exist.
         #
-        # Per-hypervisor console mapping (Linux device names):
-        #   QEMU q35       (amd64)        → ttyS0   (8250 UART)
-        #   QEMU virt      (arm64)        → ttyAMA0 (PL011 UART)
-        #   Apple VZ       (arm64, vfkit) → hvc0    (virtio-console)
-        # We list all three; busybox getty's respawn loop on a
-        # missing tty is harmless under QEMU but Alpine's inittab
-        # parser used to emit "can't open /dev/ttyAMA0" warnings
-        # in a tight loop when the hardware was absent (e.g.
-        # arm64 under VZ where there's no PL011) — leaving hvc0
-        # out meant the VZ console had no login prompt at all.
+        # (We tried pre-supplying lines wrapped in a shell
+        # that tests for the device and falls back to sleep —
+        # but busybox init opens /dev/$id BEFORE exec'ing the
+        # command, so a missing device produces a tight
+        # "can't open /dev/ttyAMA0" loop regardless of what
+        # the command does. The only reliable fix is to keep
+        # the line out of inittab in the first place, which
+        # Alpine's own setup_inittab_console handles.)
         mkdir -p "$stage/etc"
-        # Each serial-console getty is wrapped in a shell that
-        # only execs getty if the corresponding /dev/tty* node
-        # actually exists. busybox init's "respawn" action
-        # otherwise retries getty in a tight loop when the
-        # device is missing — Apple VZ has no PL011 so
-        # /dev/ttyAMA0 doesn't exist and the unwrapped form
-        # spammed "can't open /dev/ttyAMA0" on the live
-        # console. The 86400-second sleep on the failure path
-        # rate-limits the respawn to once per day; combined
-        # with the test, that effectively quiets the line on
-        # the hypervisors where the device is absent.
         cat > "$stage/etc/inittab" <<'EOF'
         ::sysinit:/sbin/openrc sysinit
         ::sysinit:/sbin/openrc boot
         ::wait:/sbin/openrc default
-        ttyS0::respawn:/bin/sh -c '[ -c /dev/ttyS0   ] && exec /sbin/getty -L 0 ttyS0   vt100; sleep 86400'
-        ttyAMA0::respawn:/bin/sh -c '[ -c /dev/ttyAMA0 ] && exec /sbin/getty -L 0 ttyAMA0 vt100; sleep 86400'
-        hvc0::respawn:/bin/sh -c '[ -c /dev/hvc0    ] && exec /sbin/getty -L 0 hvc0    vt100; sleep 86400'
         tty1::respawn:/sbin/getty 38400 tty1
         ::ctrlaltdel:/sbin/reboot
         ::shutdown:/sbin/openrc shutdown
