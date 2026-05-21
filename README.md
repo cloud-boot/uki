@@ -58,6 +58,61 @@ task push:plan PLAN=examples/plan.hcl \
 
 See `task -l` for the full task list.
 
+## Returning to the cloud-boot menu after a target was staged
+
+Once you've picked a target in the cloud-boot menu, the reboot sink
+writes a UEFI `Boot0001` entry pointing at
+`\EFI\Linux\<target>-vmlinuz.efi` on the cache disk and prepends
+`0001` to `BootOrder`. Every subsequent firmware boot of the VM
+honours that — you don't see the cloud-boot menu again until those
+NVRAM entries are cleared.
+
+Under vfkit you can just `rm /tmp/vz-test/vfkit/menu-vars.fd` and
+re-launch with `,create` to wipe the var-store file. Under
+hypervisors that persist NVRAM (OpenStack/libvirt with a per-instance
+`<nvram>` file, bare metal, …) you need an in-band reset.
+
+`uki/scripts/reset-cloud-boot.sh` runs from inside the staged distro
+and clears `Boot0001` + `BootOrder` via `efibootmgr` (or directly
+via `efivarfs` if efibootmgr isn't installed). Next reboot falls
+back to the boot media's default loader (`\EFI\BOOT\BOOTAA64.EFI`
+on arm64 = cloud-boot's UKI).
+
+```sh
+# inside the running Alpine / Debian / Ubuntu / …
+sudo /path/to/reset-cloud-boot.sh --reboot
+# (or omit --reboot to clear vars now and reboot manually later)
+```
+
+If you don't ship the script with your staged distro, the one-liner
+equivalent is:
+
+```sh
+sudo efibootmgr -b 0001 -B   # delete Boot0001 + remove from BootOrder
+sudo reboot
+```
+
+### OpenStack-specific notes
+
+In OpenStack/libvirt each VM has its NVRAM in a per-instance
+`<nvram>` file (default `/var/lib/libvirt/qemu/nvram/<id>_VARS.fd`).
+The in-band script above is the only path that works without
+compute-node admin access.
+
+If you DO have admin access on the compute node and want to wipe
+the NVRAM without booting the VM:
+
+```sh
+# Stop the instance via the dashboard / openstack server stop
+sudo virsh undefine <instance-id> --keep-nvram=no \
+                                  --nvram-template /usr/share/OVMF/AAVMF_VARS.fd
+sudo virsh define /etc/libvirt/qemu/<instance-id>.xml
+# openstack server start
+```
+
+(Path depends on whether your image is amd64 (`OVMF_VARS.fd`) or
+arm64 (`AAVMF_VARS.fd`).)
+
 ## License
 
 [BSD 3-Clause](../../go-coff/stub/LICENSE).
