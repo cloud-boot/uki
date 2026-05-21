@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -97,6 +98,21 @@ func Build(o Opts) error {
 	initramfs := filepath.Join(wd, "initramfs.cpio.gz")
 	if err := buildInitramfs(initBin, initramfs, cosignPEM, planHCL); err != nil {
 		return err
+	}
+
+	// Optional ZFS userspace bundle: a pre-built cpio.gz containing
+	// /usr/sbin/{zpool,zfs} + their dynamic library closure, staged
+	// from kernel/Dockerfile.arm64-disk-zfs (when --enable-userspace
+	// is wired). Concatenating cpio.gz streams works because Linux's
+	// initramfs loader honours multi-archive payloads — entries from
+	// the appended cpio land at their declared paths after the
+	// primary archive is unpacked. The cloud-boot UKI initramfs
+	// gains zpool/zfs without any in-Go cpio extraction logic.
+	if o.ZfsUserspaceCpio != "" {
+		if err := appendBytes(initramfs, o.ZfsUserspaceCpio); err != nil {
+			return fmt.Errorf("append zfs userspace cpio: %w", err)
+		}
+		log.Printf("appended ZFS userspace bundle from %s", o.ZfsUserspaceCpio)
 	}
 
 	fullCmd := BuildCmdline(o)
@@ -345,6 +361,29 @@ func truncate(path string, size int64) error {
 	}
 	defer f.Close()
 	return f.Truncate(size)
+}
+
+// appendBytes streams the contents of `src` onto the tail of `dst`.
+// Used to concatenate a second cpio.gz onto the cloud-boot
+// initramfs (Linux's initramfs loader unpacks consecutive
+// archives in order). Opening `dst` with O_APPEND keeps the
+// existing bytes intact; not buffered through Go's strings or
+// bytes types so the size of the appended bundle (potentially
+// 5-10 MB for the full zfsutils dependency closure) doesn't
+// blow up the process's heap.
+func appendBytes(dst, src string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	out, err := os.OpenFile(dst, os.O_APPEND|os.O_WRONLY, 0)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+	_, err = io.Copy(out, in)
+	return err
 }
 
 func run(name string, args ...string) error {

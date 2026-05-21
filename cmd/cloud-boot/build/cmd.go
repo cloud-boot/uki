@@ -27,10 +27,10 @@ var ArchProfiles = map[string]ArchProfile{
 // Opts is the resolved input to Build. Cobra populates it from the flags
 // below; tests can drive Build() directly with a struct literal.
 type Opts struct {
-	Arch                                                                                  ArchProfile
-	Kernel, Stub, Cmdline, Extra, Image, PlanRef, PlanFile, Target, Uname, Out, CosignKey string
-	WorkDir                                                                               string
-	Keep, Insec, Verbose                                                                  bool
+	Arch                                                                                                    ArchProfile
+	Kernel, Stub, Cmdline, Extra, Image, PlanRef, PlanFile, Target, Uname, Out, CosignKey, ZfsUserspaceCpio string
+	WorkDir                                                                                                 string
+	Keep, Insec, Verbose                                                                                    bool
 }
 
 // Cmd returns the `cloud-boot build` cobra subcommand.
@@ -39,19 +39,20 @@ func Cmd() *cobra.Command {
 		arch      string
 		kernel    string
 		stub      string
-		cmdline   string
-		image     string
-		planRef   string
-		planFile  string
-		target    string
-		extra     string
-		uname     string
-		out       string
-		workDir   string
-		keep      bool
-		insec     bool
-		verbose   bool
-		cosignKey string
+		cmdline          string
+		image            string
+		planRef          string
+		planFile         string
+		target           string
+		extra            string
+		uname            string
+		out              string
+		workDir          string
+		keep             bool
+		insec            bool
+		verbose          bool
+		cosignKey        string
+		zfsUserspaceCpio string
 	)
 	cmd := &cobra.Command{
 		Use:   "build",
@@ -94,6 +95,7 @@ runtime cmdline override.`,
 				Extra: extra, Image: image, PlanRef: planRef, PlanFile: planFile,
 				Target: target, Uname: uname, Out: out, WorkDir: workDir,
 				Keep: keep, Insec: insec, Verbose: verbose, CosignKey: cosignKey,
+				ZfsUserspaceCpio: zfsUserspaceCpio,
 			})
 		},
 	}
@@ -114,5 +116,6 @@ runtime cmdline override.`,
 	f.BoolVar(&insec, "insecure", false, "pass cloudboot.insecure=1 to the init (allow http registry)")
 	f.BoolVarP(&verbose, "verbose", "v", false, "skip the automatic 'quiet' injection (full kernel boot log)")
 	f.StringVar(&cosignKey, "cosign-key", "", "PEM-encoded cosign public key; embedded in initramfs")
+	f.StringVar(&zfsUserspaceCpio, "zfs-userspace-cpio", "", "path to a cpio.gz holding zpool/zfs binaries + their dyn-libs; appended to the initramfs so the ZFS disk-target branch can import pools at boot (paired with the disk-zfs kernel variant — see kernel/Dockerfile.arm64-disk-zfs)")
 	return cmd
 }
