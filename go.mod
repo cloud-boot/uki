@@ -11,9 +11,12 @@ require (
 )
 
 require (
+	github.com/anchore/go-lzo v0.1.0 // indirect
 	github.com/go-compressions/lzfse v0.0.0 // indirect
 	github.com/go-diskimages/dmg v0.0.0 // indirect
 	github.com/go-diskimages/qcow2 v0.0.0 // indirect
+	github.com/go-encryptions/ccm v0.0.0 // indirect
+	github.com/go-encryptions/zfscrypt v0.0.0 // indirect
 	github.com/go-fde/apfs v0.0.0 // indirect
 	github.com/go-fde/clear v0.0.0 // indirect
 	github.com/go-fde/fde v0.0.0 // indirect
@@ -29,6 +32,7 @@ require (
 	github.com/go-filesystems/xfs v0.0.0 // indirect
 	github.com/go-filesystems/zfs v0.0.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
+	github.com/klauspost/compress v1.18.6 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/spf13/pflag v1.0.9 // indirect
 	golang.org/x/crypto v0.50.0 // indirect
@@ -42,45 +46,53 @@ replace github.com/cloud-boot/init => ../init
 
 replace github.com/go-coff/peln => ../../go-coff/peln
 
-// Local checkouts of the disk-image toolkit (see
-// /Users/.../dev-temp/GitHub/mock/pkg/go-{diskimages,filesystems,fde,
-// compressions,bootloaders}). go-diskimages/diskimage has a deep
-// transitive graph because it supports many filesystems and codecs;
-// every leaf module needs an explicit replace until they're published.
-replace github.com/go-diskimages/diskimage => ../../../../../dev-temp/GitHub/mock/pkg/go-diskimages/diskimage
+// Local checkouts of the disk-image toolkit. go-diskimages/diskimage has
+// a deep transitive graph because it supports many filesystems and
+// codecs; every leaf module needs an explicit replace until they're
+// published. Each sibling lives under github.com/<org>/<repo> alongside
+// cloud-boot/uki itself, so the replace target is `../../<org>/<repo>`.
+replace github.com/go-diskimages/diskimage => ../../go-diskimages/diskimage
 
-replace github.com/go-diskimages/qcow2 => ../../../../../dev-temp/GitHub/mock/pkg/go-diskimages/qcow2
+replace github.com/go-diskimages/qcow2 => ../../go-diskimages/qcow2
 
-replace github.com/go-diskimages/dmg => ../../../../../dev-temp/GitHub/mock/pkg/go-diskimages/dmg
+replace github.com/go-diskimages/dmg => ../../go-diskimages/dmg
 
-replace github.com/go-filesystems/interface => ../../../../../dev-temp/GitHub/mock/pkg/go-filesystems/interface
+replace github.com/go-filesystems/interface => ../../go-filesystems/interface
 
-replace github.com/go-filesystems/ext4 => ../../../../../dev-temp/GitHub/mock/pkg/go-filesystems/ext4
+replace github.com/go-filesystems/ext4 => ../../go-filesystems/ext4
 
-replace github.com/go-filesystems/apfs => ../../../../../dev-temp/GitHub/mock/pkg/go-filesystems/apfs
+replace github.com/go-filesystems/apfs => ../../go-filesystems/apfs
 
-replace github.com/go-filesystems/btrfs => ../../../../../dev-temp/GitHub/mock/pkg/go-filesystems/btrfs
+replace github.com/go-filesystems/btrfs => ../../go-filesystems/btrfs
 
-replace github.com/go-filesystems/exfat => ../../../../../dev-temp/GitHub/mock/pkg/go-filesystems/exfat
+replace github.com/go-filesystems/exfat => ../../go-filesystems/exfat
 
-replace github.com/go-filesystems/fat32 => ../../../../../dev-temp/GitHub/mock/pkg/go-filesystems/fat32
+replace github.com/go-filesystems/fat32 => ../../go-filesystems/fat32
 
-replace github.com/go-filesystems/ntfs => ../../../../../dev-temp/GitHub/mock/pkg/go-filesystems/ntfs
+replace github.com/go-filesystems/ntfs => ../../go-filesystems/ntfs
 
-replace github.com/go-filesystems/xfs => ../../../../../dev-temp/GitHub/mock/pkg/go-filesystems/xfs
+replace github.com/go-filesystems/xfs => ../../go-filesystems/xfs
 
-replace github.com/go-filesystems/zfs => ../../../../../dev-temp/GitHub/mock/pkg/go-filesystems/zfs
+replace github.com/go-filesystems/zfs => ../../go-filesystems/zfs
 
-replace github.com/go-filesystems/uefi => ../../../../../dev-temp/GitHub/mock/pkg/go-filesystems/uefi
+replace github.com/go-filesystems/uefi => ../../go-filesystems/uefi
 
-replace github.com/go-fde/fde => ../../../../../dev-temp/GitHub/mock/pkg/go-fde/fde
+replace github.com/go-fde/fde => ../../go-fde/fde
 
-replace github.com/go-fde/apfs => ../../../../../dev-temp/GitHub/mock/pkg/go-fde/apfs
+replace github.com/go-fde/apfs => ../../go-fde/apfs
 
-replace github.com/go-fde/luks => ../../../../../dev-temp/GitHub/mock/pkg/go-fde/luks
+replace github.com/go-fde/luks => ../../go-fde/luks
 
-replace github.com/go-fde/clear => ../../../../../dev-temp/GitHub/mock/pkg/go-fde/clear
+replace github.com/go-fde/clear => ../../go-fde/clear
 
-replace github.com/go-compressions/lzfse => ../../../../../dev-temp/GitHub/mock/pkg/go-compressions/lzfse
+replace github.com/go-compressions/lzfse => ../../go-compressions/lzfse
 
-replace github.com/configuration-management-tool/mock/pkg/go-bootloaders/grub => ../../../../../dev-temp/GitHub/mock/pkg/go-bootloaders/grub
+replace github.com/go-encryptions/zfscrypt => ../../go-encryptions/zfscrypt
+
+replace github.com/go-encryptions/ccm => ../../go-encryptions/ccm
+
+// go-diskimages/diskimage's test suite imports a long-dead vendor path
+// (configuration-management-tool/mock/pkg/go-bootloaders/grub). The
+// repo behind it is 404 on github.com so `go mod tidy` resolves it via
+// the published go-bootloaders/grub sibling.
+replace github.com/configuration-management-tool/mock/pkg/go-bootloaders/grub => ../../go-bootloaders/grub
