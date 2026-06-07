@@ -19,9 +19,10 @@ type ArchProfile struct {
 
 // ArchProfiles lists every arch this CLI knows how to assemble for.
 var ArchProfiles = map[string]ArchProfile{
-	"amd64":   {"amd64", "BOOTX64.EFI", "linuxx64.efi.stub"},
-	"arm64":   {"arm64", "BOOTAA64.EFI", "linuxaa64.efi.stub"},
-	"riscv64": {"riscv64", "BOOTRISCV64.EFI", "linuxriscv64.efi.stub"},
+	"amd64":       {"amd64", "BOOTX64.EFI", "linuxx64.efi.stub"},
+	"arm64":       {"arm64", "BOOTAA64.EFI", "linuxaa64.efi.stub"},
+	"riscv64":     {"riscv64", "BOOTRISCV64.EFI", "linuxriscv64.efi.stub"},
+	"loongarch64": {"loongarch64", "BOOTLOONGARCH64.EFI", "linuxloongarch64.efi.stub"},
 }
 
 // Opts is the resolved input to Build. Cobra populates it from the flags
@@ -73,7 +74,7 @@ runtime cmdline override.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			prof, ok := ArchProfiles[arch]
 			if !ok {
-				return fmt.Errorf("unsupported --arch %q (allowed: amd64, arm64, riscv64)", arch)
+				return fmt.Errorf("unsupported --arch %q (allowed: amd64, arm64, riscv64, loongarch64)", arch)
 			}
 			if kernel == "" {
 				return fmt.Errorf("--kernel is required")
@@ -100,7 +101,7 @@ runtime cmdline override.`,
 		},
 	}
 	f := cmd.Flags()
-	f.StringVar(&arch, "arch", "amd64", "target arch (amd64|arm64|riscv64)")
+	f.StringVar(&arch, "arch", "amd64", "target arch (amd64|arm64|riscv64|loongarch64)")
 	f.StringVar(&kernel, "kernel", "", "path to host vmlinuz for the target arch (with EFI stub + virtio)")
 	f.StringVar(&stub, "stub", "", "path to systemd UEFI stub (auto-detected per arch)")
 	f.StringVar(&cmdline, "cmdline", "console=ttyS0", "kernel cmdline (augmented with cloudboot.* keys; 'quiet' injected unless --verbose)")

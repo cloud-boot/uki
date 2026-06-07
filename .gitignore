@@ -12,9 +12,24 @@ bin/
 cidata.iso
 
 # Distribution payload caches populated by `task push:alpine` /
-# `task push:debian` / `task fetch:debian:cloud` / `task label:debian:cloud`.
+# `task push:debian` / `task fetch:debian:cloud` / `task label:debian:cloud`
+# / `task push:debian-live` and the corresponding sibling distros.
 .alpine-cache/
+.alma-cache/
 .debian-cache/
+.debian-live-cache/
+.fedora-cache/
+.nixos-cache/
+.suse-cache/
+.ubuntu-cache/
+
+# Stray host-built CLI binary if the operator drops one at the repo root
+# (rare — `task build` puts it under bin/ by default, see above).
+/cloud-boot
+
+# Stray intermediate initramfs cpio if a build was interrupted before
+# /tmp cleanup ran.
+/initrd.cpio
 
 # Go test outputs.
 *.test

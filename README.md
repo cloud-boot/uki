@@ -113,6 +113,129 @@ sudo virsh define /etc/libvirt/qemu/<instance-id>.xml
 (Path depends on whether your image is amd64 (`OVMF_VARS.fd`) or
 arm64 (`AAVMF_VARS.fd`).)
 
+## Multi-arch boot ISO (TamaGo + UEFI bring-up)
+
+`cloud-boot iso` packs N already-built per-arch UEFI binaries into a
+single hybrid iso9660 + GPT image. Each binary lands at the UEFI
+removable-media fallback path for its CPU
+(`\EFI\BOOT\BOOTX64.EFI` for amd64, `\EFI\BOOT\BOOTAA64.EFI` for
+arm64, `\EFI\BOOT\BOOTLOONGARCH64.EFI` for loongarch64,
+`\EFI\BOOT\BOOTRISCV64.EFI` for riscv64). Firmware on each CPU
+reads only its own arch's file, so the same ISO boots on all four
+hosts.
+
+The end-to-end recipe below uses the four EFI binaries produced
+by the sibling [`cloud-boot/tamago-uefi`](../tamago-uefi) board
+package as inputs.
+
+### 1. Build the multi-arch ISO
+
+```sh
+task iso:multiarch
+# →  ./bin/cloud-boot iso \
+#      --uki linux/amd64=../tamago-uefi/BOOTX64.EFI \
+#      --uki linux/arm64=../tamago-uefi/BOOTAA64.EFI \
+#      --uki linux/loongarch64=../tamago-uefi/BOOTLOONGARCH64.EFI \
+#      --uki linux/riscv64=../tamago-uefi/BOOTRISCV64.EFI \
+#      --output boot-multi.iso
+```
+
+Override any path with `EFI_AMD64=… EFI_ARM64=… EFI_LOONG64=…
+EFI_RISCV64=…` if your binaries live elsewhere. The output ISO
+path defaults to `boot-multi.iso`; override with `MULTI_ISO=…`.
+
+Inspect the result:
+
+```sh
+xorriso -indev boot-multi.iso -toc          # boot record + ESP partition
+mdir -i <(dd if=boot-multi.iso bs=512 skip=140) -/ ::/EFI/BOOT
+```
+
+You should see all four `BOOTX64.EFI`, `BOOTAA64.EFI`,
+`BOOTLOONGARCH64.EFI`, `BOOTRISCV64.EFI` files in the ESP.
+
+### 2. Boot-test each arch under QEMU + EDK2
+
+```sh
+task test:multiarch:boot
+```
+
+This wraps a pure-Go test driver in
+[`internal/multiarchboot`](internal/multiarchboot). For each arch
+it spawns `qemu-system-<arch>` with the matching EDK2 firmware
+and asserts the captured serial output contains the
+tamago-uefi banner:
+
+```
+hello from cloud-boot tamago/<arch> UEFI board
+runtime: go1.26.3 GOOS=tamago GOARCH=<arch>
+goroutine sum: 499500
+DONE — halting
+```
+
+Each arch is skip-gated on its OVMF firmware env var being set
+to an existing file — the suite stays green on hosts that don't
+ship one of the four firmwares. Defaults assume homebrew's qemu
+bottle on macOS:
+
+| Env var                       | Default                                                          | Required? |
+| ----------------------------- | ---------------------------------------------------------------- | --------- |
+| `CLOUDBOOT_OVMF_AMD64_CODE`   | `$QEMU_EDK2_DIR/edk2-x86_64-code.fd`                             | always    |
+| `CLOUDBOOT_OVMF_AMD64_VARS`   | `$QEMU_EDK2_DIR/edk2-i386-vars.fd`                               | always    |
+| `CLOUDBOOT_OVMF_ARM64_CODE`   | `$QEMU_EDK2_DIR/edk2-aarch64-code.fd`                            | always    |
+| `CLOUDBOOT_OVMF_LOONG64_CODE` | `$QEMU_EDK2_DIR/edk2-loongarch64-code.fd`                        | always    |
+| `CLOUDBOOT_OVMF_RISCV64_CODE` | `$QEMU_EDK2_DIR/edk2-riscv-code.fd`                              | always    |
+| `CLOUDBOOT_OVMF_RISCV64_VARS` | `$QEMU_EDK2_DIR/edk2-riscv-vars.fd`                              | always    |
+| `QEMU_EDK2_DIR`               | `/opt/homebrew/Cellar/qemu/10.2.2/share/qemu`                    | macOS     |
+| `CLOUDBOOT_BOOT_TIMEOUT`      | `60s` (per arch)                                                 | optional  |
+
+Override `QEMU_EDK2_DIR` to point at any other directory holding
+the six `edk2-*.fd` images (Debian: `/usr/share/qemu/`; Arch:
+`/usr/share/edk2/...`; Fedora: `/usr/share/edk2/...`).
+
+### 3. Where to get OVMF binaries
+
+- **macOS** — `brew install qemu` ships `edk2-{x86_64,aarch64,
+  loongarch64,riscv}-code.fd` and `edk2-{i386,arm,loongarch64,
+  riscv}-vars.fd` under
+  `/opt/homebrew/Cellar/qemu/<ver>/share/qemu/`.
+- **Debian / Ubuntu** — `apt install ovmf qemu-efi-aarch64`. The
+  aarch64 code lives at `/usr/share/AAVMF/AAVMF_CODE.fd`; amd64
+  at `/usr/share/OVMF/OVMF_CODE.fd`. loongarch64 + riscv64 ship
+  with `qemu-efi-loongarch64` / `qemu-efi-riscv64` in recent
+  releases (Debian trixie / Ubuntu 24.04+); otherwise pull
+  prebuilt `edk2-stable*` images from
+  [retrage's edk2 build](https://retrage.github.io/edk2-nightly/)
+  or build EDK2 from source for the missing arches.
+- **Arch / Fedora** — `pacman -S edk2-aarch64 edk2-x86_64 edk2-
+  loongarch64 edk2-riscv64-virt` (or the Fedora `edk2-*` package
+  set).
+
+The QEMU command lines invoked by `task test:multiarch:boot`
+match the ones documented in
+[`../tamago-uefi/README.md`](../tamago-uefi/README.md#how-this-is-built)
+section "boot under QEMU/OVMF". Running the test target by hand
+is equivalent to running each of those four invocations against
+the multi-arch ISO instead of the per-arch ones.
+
+### 4. Known per-arch status
+
+| Arch     | Firmware                            | Status (QEMU 10.2.2 + EDK2 stable202408) |
+| -------- | ----------------------------------- | ---------------------------------------- |
+| amd64    | `edk2-x86_64-code.fd` + vars        | PASS — full banner over serial           |
+| arm64    | `edk2-aarch64-code.fd`              | PASS — full banner over serial           |
+| loong64  | `edk2-loongarch64-code.fd`          | PASS — full banner over serial           |
+| riscv64  | `edk2-riscv-code.fd` + vars         | PASS — banner shown (note: tamago-uefi's riscv64 build currently bakes `GOARCH=amd64` into its banner string; the actual machine code is RISC-V and `goroutine sum: 499500` + `DONE` are emitted correctly. tracked in tamago-uefi.) |
+
+The RISC-V firmware bug noted in tamago-uefi's README
+(`SetUefiImageMemoryAttributes` fault under earlier
+`edk2-stable202408` snapshots) does not reproduce on the homebrew
+qemu 10.2.2 EDK2 bottle — the binary loads, runs and prints its
+banner. If you see the fault on a different EDK2 build, flip the
+`ExpectFail` field on the riscv64 entry in
+[`internal/multiarchboot/multiarchboot.go`](internal/multiarchboot/multiarchboot.go)
+to keep the suite green.
+
 ## License
 
 [BSD 3-Clause](../../go-coff/stub/LICENSE).
