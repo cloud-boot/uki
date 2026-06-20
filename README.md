@@ -1,3 +1,5 @@
+<p align="center"><img src="https://raw.githubusercontent.com/cloud-boot/brand/main/social/cloud-boot.png" alt="cloud-boot/uki" width="720"></p>
+
 # cloud-boot/uki
 
 Host-side toolchain that assembles **bootable UEFI ISOs** from the
