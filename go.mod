@@ -1,36 +1,39 @@
 module github.com/cloud-boot/uki
 
-go 1.25.1
+go 1.26.4
 
 require (
-	github.com/cloud-boot/init v0.0.0-00010101000000-000000000000
-	github.com/go-coff/peln v0.0.0-00010101000000-000000000000
-	github.com/go-diskimages/diskimage v0.0.0-00010101000000-000000000000
+	github.com/cloud-boot/init v0.0.0-20260818132538-63522516384b
+	github.com/go-coff/peln v0.3.0
+	github.com/go-diskimages/diskimage v0.0.0-20260805203948-111ddb3b0aed
 	github.com/opencontainers/image-spec v1.1.0
 	github.com/spf13/cobra v1.10.2
 )
 
 require (
 	github.com/anchore/go-lzo v0.1.0 // indirect
-	github.com/go-compressions/lzfse v0.0.0 // indirect
-	github.com/go-diskimages/dmg v0.0.0 // indirect
-	github.com/go-diskimages/qcow2 v0.0.0 // indirect
-	github.com/go-encryptions/ccm v0.0.0 // indirect
-	github.com/go-encryptions/zfscrypt v0.0.0 // indirect
-	github.com/go-fde/apfs v0.0.0 // indirect
-	github.com/go-fde/clear v0.0.0 // indirect
-	github.com/go-fde/fde v0.0.0 // indirect
-	github.com/go-fde/luks v0.0.0 // indirect
-	github.com/go-filesystems/apfs v0.0.0 // indirect
-	github.com/go-filesystems/btrfs v0.0.0 // indirect
-	github.com/go-filesystems/exfat v0.0.0 // indirect
-	github.com/go-filesystems/ext4 v0.0.0 // indirect
-	github.com/go-filesystems/fat32 v0.0.0 // indirect
-	github.com/go-filesystems/interface v0.0.0 // indirect
-	github.com/go-filesystems/ntfs v0.0.0 // indirect
-	github.com/go-filesystems/uefi v0.0.0 // indirect
-	github.com/go-filesystems/xfs v0.0.0 // indirect
-	github.com/go-filesystems/zfs v0.0.0 // indirect
+	github.com/go-compressions/lzfse v0.1.1-0.20260620062248-135e417e8ead // indirect
+	github.com/go-diskimages/dmg v0.0.0-20260622110325-12b2a5087c73 // indirect
+	github.com/go-diskimages/qcow2 v0.1.1-0.20260615173836-3e5a0cea6d90 // indirect
+	github.com/go-encryptions/ccm v0.0.0-20260620055113-74db323be0b2 // indirect
+	github.com/go-encryptions/xts v0.0.0-20260702212620-e9fe59a121e5 // indirect
+	github.com/go-encryptions/zfscrypt v0.0.0-20260623125925-033c4ad509ed // indirect
+	github.com/go-fde/apfs v0.0.0-20260620062418-22bb63627e03 // indirect
+	github.com/go-fde/clear v0.0.0-20260620062427-f7b9676e89b9 // indirect
+	github.com/go-fde/fde v0.0.0-20260622113821-f4774d256221 // indirect
+	github.com/go-fde/luks v0.0.0-20260806070309-cc203b30f980 // indirect
+	github.com/go-filesystems/apfs v0.0.0-20260622082644-466711e6bfba // indirect
+	github.com/go-filesystems/btrfs v0.0.0-20260806055646-9550ae87d70d // indirect
+	github.com/go-filesystems/exfat v0.0.0-20260622110028-8ffa80a3f536 // indirect
+	github.com/go-filesystems/ext4 v0.0.0-20260805205057-58ae0020ace0 // indirect
+	github.com/go-filesystems/fat32 v0.0.0-20260622110031-1d68bab25618 // indirect
+	github.com/go-filesystems/interface v0.0.0-20260806072947-fad96472e2df // indirect
+	github.com/go-filesystems/ntfs v0.0.0-20260622110034-d6dc445594cc // indirect
+	github.com/go-filesystems/uefi v0.0.0-20260622110039-8bad894e467d // indirect
+	github.com/go-filesystems/xfs v0.0.0-20260805204501-d2d164d7adcc // indirect
+	github.com/go-filesystems/zfs v0.0.0-20260811211713-ecb3283cc98c // indirect
+	github.com/go-volumes/gpt v0.0.0-20260622100756-3721db1fbd05 // indirect
+	github.com/go-volumes/safeio v0.0.0-20260622072324-7f8eb19f6f8c // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/klauspost/compress v1.18.6 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
@@ -40,59 +43,3 @@ require (
 	golang.org/x/sys v0.44.0 // indirect
 	golang.org/x/text v0.36.0 // indirect
 )
-
-// Local sibling checkouts — until both modules are published.
-replace github.com/cloud-boot/init => ../init
-
-replace github.com/go-coff/peln => ../../go-coff/peln
-
-// Local checkouts of the disk-image toolkit. go-diskimages/diskimage has
-// a deep transitive graph because it supports many filesystems and
-// codecs; every leaf module needs an explicit replace until they're
-// published. Each sibling lives under github.com/<org>/<repo> alongside
-// cloud-boot/uki itself, so the replace target is `../../<org>/<repo>`.
-replace github.com/go-diskimages/diskimage => ../../go-diskimages/diskimage
-
-replace github.com/go-diskimages/qcow2 => ../../go-diskimages/qcow2
-
-replace github.com/go-diskimages/dmg => ../../go-diskimages/dmg
-
-replace github.com/go-filesystems/interface => ../../go-filesystems/interface
-
-replace github.com/go-filesystems/ext4 => ../../go-filesystems/ext4
-
-replace github.com/go-filesystems/apfs => ../../go-filesystems/apfs
-
-replace github.com/go-filesystems/btrfs => ../../go-filesystems/btrfs
-
-replace github.com/go-filesystems/exfat => ../../go-filesystems/exfat
-
-replace github.com/go-filesystems/fat32 => ../../go-filesystems/fat32
-
-replace github.com/go-filesystems/ntfs => ../../go-filesystems/ntfs
-
-replace github.com/go-filesystems/xfs => ../../go-filesystems/xfs
-
-replace github.com/go-filesystems/zfs => ../../go-filesystems/zfs
-
-replace github.com/go-filesystems/uefi => ../../go-filesystems/uefi
-
-replace github.com/go-fde/fde => ../../go-fde/fde
-
-replace github.com/go-fde/apfs => ../../go-fde/apfs
-
-replace github.com/go-fde/luks => ../../go-fde/luks
-
-replace github.com/go-fde/clear => ../../go-fde/clear
-
-replace github.com/go-compressions/lzfse => ../../go-compressions/lzfse
-
-replace github.com/go-encryptions/zfscrypt => ../../go-encryptions/zfscrypt
-
-replace github.com/go-encryptions/ccm => ../../go-encryptions/ccm
-
-// go-diskimages/diskimage's test suite imports a long-dead vendor path
-// (configuration-management-tool/mock/pkg/go-bootloaders/grub). The
-// repo behind it is 404 on github.com so `go mod tidy` resolves it via
-// the published go-bootloaders/grub sibling.
-replace github.com/configuration-management-tool/mock/pkg/go-bootloaders/grub => ../../go-bootloaders/grub
