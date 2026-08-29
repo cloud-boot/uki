@@ -3,7 +3,7 @@ module github.com/cloud-boot/uki
 go 1.26.4
 
 require (
-	github.com/cloud-boot/init v0.0.0-20260818132538-63522516384b
+	github.com/cloud-boot/init v0.0.0-20260820081320-8e69a219716c
 	github.com/go-coff/peln v0.3.0
 	github.com/go-diskimages/diskimage v0.0.0-20260805203948-111ddb3b0aed
 	github.com/opencontainers/image-spec v1.1.0
