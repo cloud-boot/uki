@@ -6,7 +6,7 @@ require (
 	github.com/cloud-boot/init v0.0.0-20260820081320-8e69a219716c
 	github.com/go-coff/peln v0.3.0
 	github.com/go-diskimages/diskimage v0.0.0-20260805203948-111ddb3b0aed
-	github.com/opencontainers/image-spec v1.1.0
+	github.com/opencontainers/image-spec v1.1.1
 	github.com/spf13/cobra v1.10.2
 )
 
