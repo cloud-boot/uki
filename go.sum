@@ -8,6 +8,8 @@ github.com/cloud-boot/init v0.0.0-20260830144547-648fb43bd192 h1:sdEsQ6N4H2V5jB9
 github.com/cloud-boot/init v0.0.0-20260830144547-648fb43bd192/go.mod h1:BJEhqmsaHORc9rHGUFxRjRbEK7DCC/5ZJSuWVdbQ/yc=
 github.com/cloud-boot/init v0.0.0-20260831155339-226176b10285 h1:EICLDAbt/1qCRvfBuJ9On7xhDg/pZi4trMU3lE0Q++I=
 github.com/cloud-boot/init v0.0.0-20260831155339-226176b10285/go.mod h1:wmK4cnJboJHGgEcWcGybVC91HOYm5ihgNrTk53ygESE=
+github.com/cloud-boot/init v0.0.0-20260901144428-55efcc00f888 h1:Qgbue20M7SoTbZi9AZtyYywObotiGWnFfBjkJHVcckM=
+github.com/cloud-boot/init v0.0.0-20260901144428-55efcc00f888/go.mod h1:hgFZYmhk16alzM55hqJQaAztJ8W8XXHFIab/F1lXa2Q=
 github.com/cpuguy83/go-md2man/v2 v2.0.6/go.mod h1:oOW0eioCTA6cOiMLiUPZOpcVxMig6NIQQ7OS05n1F4g=
 github.com/go-bootloaders/grub v0.0.0-20260622114902-50c2f0be8746 h1:ENI4cpWfnzLWjVyHaUa5uFBW6lqZp8KwLW60zpw1Stw=
 github.com/go-bootloaders/grub v0.0.0-20260622114902-50c2f0be8746/go.mod h1:6qjIdmfr04GEQj4SQkT1nH0dqH2LuibLm9rUAAs5glM=
@@ -21,6 +23,8 @@ github.com/go-diskimages/diskimage v0.0.0-20260805203948-111ddb3b0aed h1:NIFSOq7
 github.com/go-diskimages/diskimage v0.0.0-20260805203948-111ddb3b0aed/go.mod h1:+g0OY3nUkFsqG3zSb1lhojzYyq1gfhHFyyp4bAiQARc=
 github.com/go-diskimages/diskimage v0.0.0-20260831064145-04b5f8024ff6 h1:0oBfONv1OTsI/8VQ404XxIHeQVOzmtwddt1K+PDsQ5Y=
 github.com/go-diskimages/diskimage v0.0.0-20260831064145-04b5f8024ff6/go.mod h1:bGas3IOgIXNKgHXM9beO3Cay3/oVv0EU/J9PH1kCHTo=
+github.com/go-diskimages/diskimage v0.0.0-20260901144458-dc42dfdaff5e h1:fmBHsOixaJKBF0GkRFGMYfNv6BJBnMj7/8b1c6YCY8o=
+github.com/go-diskimages/diskimage v0.0.0-20260901144458-dc42dfdaff5e/go.mod h1:bGas3IOgIXNKgHXM9beO3Cay3/oVv0EU/J9PH1kCHTo=
 github.com/go-diskimages/dmg v0.0.0-20260622110325-12b2a5087c73 h1:KyqZRBaoOxzzMnBzARrzspYls1bqK4jPv4hIfmgG4wU=
 github.com/go-diskimages/dmg v0.0.0-20260622110325-12b2a5087c73/go.mod h1:pkV3ZhdB13Gk84BZNLyEzjOS/WNIHbWQmW0TuGtJgu4=
 github.com/go-diskimages/qcow2 v0.1.1-0.20260615173836-3e5a0cea6d90 h1:nZc7T4b2ki/Fm9OXGHXV/Xd9Lb+S/Nf373cgmFxn/IE=
