@@ -3,7 +3,7 @@ module github.com/cloud-boot/uki
 go 1.26.4
 
 require (
-	github.com/cloud-boot/init v0.0.0-20260901144428-55efcc00f888
+	github.com/cloud-boot/init v0.0.0-20260903191822-9fbb1408d0fa
 	github.com/go-coff/peln v0.3.0
 	github.com/go-diskimages/diskimage v0.0.0-20260901144458-dc42dfdaff5e
 	github.com/opencontainers/image-spec v1.1.1
@@ -32,10 +32,10 @@ require (
 	github.com/go-filesystems/uefi v0.1.0 // indirect
 	github.com/go-filesystems/xfs v0.1.0 // indirect
 	github.com/go-filesystems/zfs v0.1.0 // indirect
-	github.com/go-volumes/gpt v0.0.0-20260830080217-f939ebaffdf6 // indirect
-	github.com/go-volumes/safeio v0.0.0-20260830080216-c99e29c86f27 // indirect
+	github.com/go-volumes/gpt v0.0.0-20260831115417-b3069a3ac03a // indirect
+	github.com/go-volumes/safeio v0.0.0-20260831125406-d8f54b2890d4 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/klauspost/compress v1.19.2 // indirect
+	github.com/klauspost/compress v1.20.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/spf13/pflag v1.0.9 // indirect
 	golang.org/x/crypto v0.55.0 // indirect
