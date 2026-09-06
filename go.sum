@@ -1,7 +1,7 @@
 github.com/anchore/go-lzo v0.1.0 h1:NgAacnzqPeGH49Ky19QKLBZEuFRqtTG9cdaucc3Vncs=
 github.com/anchore/go-lzo v0.1.0/go.mod h1:3kLx0bve2oN1iDwgM1U5zGku1Tfbdb0No5qp1eL1fIk=
-github.com/cloud-boot/init v0.0.0-20260903191822-9fbb1408d0fa h1:RxxhNvQZoTz0DxJ9QEubeeFjziEepTSgnnvbyasa6rk=
-github.com/cloud-boot/init v0.0.0-20260903191822-9fbb1408d0fa/go.mod h1:QhGdrkM/lmWLcugzlj07fwLnKI4QgPbwPkl/kJkQgnI=
+github.com/cloud-boot/init v0.0.0-20260905061312-eb6d8cc6ed4e h1:nAiROiqfezI27E3+tqinoa3fHospBJo/WDKPCc0q5qk=
+github.com/cloud-boot/init v0.0.0-20260905061312-eb6d8cc6ed4e/go.mod h1:Wqz5r9YI7KRyIZpDOQuaRyWNXsjfAg/tYd11EiD8u60=
 github.com/cpuguy83/go-md2man/v2 v2.0.6/go.mod h1:oOW0eioCTA6cOiMLiUPZOpcVxMig6NIQQ7OS05n1F4g=
 github.com/go-bootloaders/grub v0.0.0-20260830075351-9544d5cf68c4 h1:k1ha4+3DWTyLOqDf1sTdtv55X5D0swnbxykUZYZh3ek=
 github.com/go-bootloaders/grub v0.0.0-20260830075351-9544d5cf68c4/go.mod h1:Oe1ND48y3uNkCmKKIvV43YiGn7/Ocd3llBty5vnoVGo=
@@ -17,8 +17,8 @@ github.com/go-diskimages/qcow2 v0.1.1-0.20260615173836-3e5a0cea6d90 h1:nZc7T4b2k
 github.com/go-diskimages/qcow2 v0.1.1-0.20260615173836-3e5a0cea6d90/go.mod h1:YMW0rJahslm7Nwhi4Ugs7gs5zQtoJkiXHC7luhpPLbI=
 github.com/go-encryptions/ccm v0.0.0-20260620055113-74db323be0b2 h1:Gky3CPkbtx6TdLJKw/liSsljOz561HDE0gGXoABDObI=
 github.com/go-encryptions/ccm v0.0.0-20260620055113-74db323be0b2/go.mod h1:0XHNptBliXAeC9Ikl/maTnmj6+VWeJ5vZElyTprdYWI=
-github.com/go-encryptions/xts v0.0.0-20260830124722-be3e6a7bf880 h1:uDM9c3w6jmGnwzoIUvJKjZAnbwNRYMPS7qWbjNn7m8Q=
-github.com/go-encryptions/xts v0.0.0-20260830124722-be3e6a7bf880/go.mod h1:LFCI9BbDBVokgn7lXG8axukRSiH84Fv7WFmquYFZELU=
+github.com/go-encryptions/xts v0.0.0-20260903192301-101a3e472f94 h1:nH2Msy4l+mq7VLuMDhV8iGlFNX0kMiai4BBNJENQ3UQ=
+github.com/go-encryptions/xts v0.0.0-20260903192301-101a3e472f94/go.mod h1:IMkRCLbIbPslkb7X7+lkDG2xkugRjBJG5iax1jQc2gc=
 github.com/go-encryptions/zfscrypt v0.0.0-20260623125925-033c4ad509ed h1:WaqYbb5Ia613X8QRW8J7rPqTN5M0P57tAoRKf1xpRts=
 github.com/go-encryptions/zfscrypt v0.0.0-20260623125925-033c4ad509ed/go.mod h1:PzuGFDE4GvnezFgPEbaBdKFaPFsDdxIF8DpaqgdsvUQ=
 github.com/go-fde/apfs v0.0.0-20260806070302-251df306364c h1:1f5Pp47OFAL8JiYVAvxo48SbXJPa47T75MAZ7yZyicI=
@@ -27,8 +27,8 @@ github.com/go-fde/clear v0.0.0-20260620062427-f7b9676e89b9 h1:xpWJI2zfxuTudLOHK3
 github.com/go-fde/clear v0.0.0-20260620062427-f7b9676e89b9/go.mod h1:kfRYnfX+JX3Tkm6eldHEk23qrRJbIpOsQTqd2LS+yBM=
 github.com/go-fde/fde v0.0.0-20260622113821-f4774d256221 h1:F89e1BZgGezpzvQErT9LJ0RLIuEHyoBGv2zEOqEbEdI=
 github.com/go-fde/fde v0.0.0-20260622113821-f4774d256221/go.mod h1:7P1iLrcVaIQoyvcTaSkdqigDH0VQYiMNOPGVYaLI2qc=
-github.com/go-fde/luks v0.0.0-20260830211523-6cf5fe0027a4 h1:c3sbp5wpfcAC+P4Z5TIIYNwcK2ZQEJN8CjV1sM+Fz+M=
-github.com/go-fde/luks v0.0.0-20260830211523-6cf5fe0027a4/go.mod h1:YQrxXcCqWWYXuCCPFIPnmSXmh4KuwVAV+dgvaowUlZU=
+github.com/go-fde/luks v0.0.0-20260904102035-a75bdafb522b h1:x3l6v6iJAtsB8CrRCEXpprFuRmv2wULFr6z+VaqKoh8=
+github.com/go-fde/luks v0.0.0-20260904102035-a75bdafb522b/go.mod h1:UWLWKOUBDUEQlKjBWl6OZM3jeWlgn90s/oWuGVQatW0=
 github.com/go-filesystems/apfs v0.1.0 h1:xuYtUhavWDAK7cq0+h4x2xh83szK0zmf/gBok1iFDlg=
 github.com/go-filesystems/apfs v0.1.0/go.mod h1:S3lJ8g64Km7ggJYkEHK3mrg0VQ9Vum2ogMY+J3zrdH0=
 github.com/go-filesystems/btrfs v0.1.0 h1:RmRRqqMkEWd+EkyWx37gqcFnNkG0TLDwl2k02ulLTiE=
@@ -73,8 +73,8 @@ github.com/spf13/cobra v1.10.2/go.mod h1:7C1pvHqHw5A4vrJfjNwvOdzYu0Gml16OCs2GRiT
 github.com/spf13/pflag v1.0.9 h1:9exaQaMOCwffKiiiYk6/BndUBv+iRViNW+4lEMi0PvY=
 github.com/spf13/pflag v1.0.9/go.mod h1:McXfInJRrz4CZXVZOBLb0bTZqETkiAhM9Iw0y3An2Bg=
 go.yaml.in/yaml/v3 v3.0.4/go.mod h1:DhzuOOF2ATzADvBadXxruRBLzYTpT36CKvDb3+aBEFg=
-golang.org/x/crypto v0.55.0 h1:+KWHjbgOaAQ66dh/YlkZKHlz9ZUlq61AFirAR9ntP8M=
-golang.org/x/crypto v0.55.0/go.mod h1:uq0V9dE/fzQuJtbnL+2EhWOE63vo164FY8xqEnV9xis=
+golang.org/x/crypto v0.56.0 h1:GUh5Ii4J5jtcseSMiRqr1jXCNHoxjeV9Fmekc2oLy6Y=
+golang.org/x/crypto v0.56.0/go.mod h1:OMW5y6CY9l38uPLmxU6l6pwcXp1obtLo3e6gT7gQR2I=
 golang.org/x/net v0.58.0 h1:ynWG7rqYi4ccpTEuPZ2QGWHktVEM9DMCj9yzDE0Q7To=
 golang.org/x/net v0.58.0/go.mod h1:YwCddHnFlT7eLQqVprV19OnhLGtc5xOKgE0RyqgfWAU=
 golang.org/x/sys v0.47.0 h1:o7XGOvZQCADBQQ4Y7VNq2dRWQR7JmOUW8Kxx4ZsNgWs=
