@@ -3,9 +3,9 @@ module github.com/cloud-boot/uki
 go 1.26.4
 
 require (
-	github.com/cloud-boot/init v0.0.0-20260905061312-eb6d8cc6ed4e
+	github.com/cloud-boot/init v0.0.0-20260910124229-8374faa2622e
 	github.com/go-coff/peln v0.3.0
-	github.com/go-diskimages/diskimage v0.0.0-20260906154920-b66bc8bce33f
+	github.com/go-diskimages/diskimage v0.0.0-20260907182738-b838e1a2ccef
 	github.com/opencontainers/image-spec v1.1.1
 	github.com/spf13/cobra v1.10.2
 )
@@ -13,7 +13,7 @@ require (
 require (
 	github.com/anchore/go-lzo v0.1.0 // indirect
 	github.com/go-compressions/lzfse v0.3.0 // indirect
-	github.com/go-diskimages/dmg v0.0.0-20260906113617-2b1992177b6a // indirect
+	github.com/go-diskimages/dmg v0.0.0-20260907182204-944939792f30 // indirect
 	github.com/go-diskimages/qcow2 v0.1.1-0.20260615173836-3e5a0cea6d90 // indirect
 	github.com/go-encryptions/ccm v0.0.0-20260620055113-74db323be0b2 // indirect
 	github.com/go-encryptions/xts v0.0.0-20260903192301-101a3e472f94 // indirect
@@ -39,8 +39,8 @@ require (
 	github.com/klauspost/compress v1.20.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/spf13/pflag v1.0.9 // indirect
-	golang.org/x/crypto v0.56.0 // indirect
-	golang.org/x/net v0.58.0 // indirect
-	golang.org/x/sys v0.47.0 // indirect
-	golang.org/x/text v0.41.0 // indirect
+	golang.org/x/crypto v0.57.0 // indirect
+	golang.org/x/net v0.59.0 // indirect
+	golang.org/x/sys v0.48.0 // indirect
+	golang.org/x/text v0.42.0 // indirect
 )
