@@ -1,7 +1,7 @@
 github.com/anchore/go-lzo v0.1.0 h1:NgAacnzqPeGH49Ky19QKLBZEuFRqtTG9cdaucc3Vncs=
 github.com/anchore/go-lzo v0.1.0/go.mod h1:3kLx0bve2oN1iDwgM1U5zGku1Tfbdb0No5qp1eL1fIk=
-github.com/cloud-boot/init v0.0.0-20260910124229-8374faa2622e h1:h11lzGCMQuN0IJHFUS4vIy0KxCJXU5k656eJBO7SrWA=
-github.com/cloud-boot/init v0.0.0-20260910124229-8374faa2622e/go.mod h1:EMefu0fdmUz9P//V/VSKHt+h/d9bhajcAZx4cq7W4PQ=
+github.com/cloud-boot/init v0.0.0-20260912115905-2589b5a0f550 h1:t/Ya39LhMFihjyC/4khyZWWtAGupwwt/oQ/f9Q2L2wE=
+github.com/cloud-boot/init v0.0.0-20260912115905-2589b5a0f550/go.mod h1:r+2DpWBVe7OIB9YMU7Zc94gk2aSfvwq8iKJX6nvg8AY=
 github.com/cpuguy83/go-md2man/v2 v2.0.6/go.mod h1:oOW0eioCTA6cOiMLiUPZOpcVxMig6NIQQ7OS05n1F4g=
 github.com/go-bootloaders/grub v0.0.0-20260830075351-9544d5cf68c4 h1:k1ha4+3DWTyLOqDf1sTdtv55X5D0swnbxykUZYZh3ek=
 github.com/go-bootloaders/grub v0.0.0-20260830075351-9544d5cf68c4/go.mod h1:Oe1ND48y3uNkCmKKIvV43YiGn7/Ocd3llBty5vnoVGo=
@@ -17,8 +17,8 @@ github.com/go-diskimages/qcow2 v0.1.1-0.20260615173836-3e5a0cea6d90 h1:nZc7T4b2k
 github.com/go-diskimages/qcow2 v0.1.1-0.20260615173836-3e5a0cea6d90/go.mod h1:YMW0rJahslm7Nwhi4Ugs7gs5zQtoJkiXHC7luhpPLbI=
 github.com/go-encryptions/ccm v0.0.0-20260620055113-74db323be0b2 h1:Gky3CPkbtx6TdLJKw/liSsljOz561HDE0gGXoABDObI=
 github.com/go-encryptions/ccm v0.0.0-20260620055113-74db323be0b2/go.mod h1:0XHNptBliXAeC9Ikl/maTnmj6+VWeJ5vZElyTprdYWI=
-github.com/go-encryptions/xts v0.0.0-20260903192301-101a3e472f94 h1:nH2Msy4l+mq7VLuMDhV8iGlFNX0kMiai4BBNJENQ3UQ=
-github.com/go-encryptions/xts v0.0.0-20260903192301-101a3e472f94/go.mod h1:IMkRCLbIbPslkb7X7+lkDG2xkugRjBJG5iax1jQc2gc=
+github.com/go-encryptions/xts v0.0.0-20260908181026-3089a42876e3 h1:G1Nbb8En0Z8mO45IrfTWKDPqrcNn8IURajlSSoQchPY=
+github.com/go-encryptions/xts v0.0.0-20260908181026-3089a42876e3/go.mod h1:8O6H8PrYGodJ5QdRET0VyaxBf/qVVK6HFpbIPfC+M9U=
 github.com/go-encryptions/zfscrypt v0.0.0-20260623125925-033c4ad509ed h1:WaqYbb5Ia613X8QRW8J7rPqTN5M0P57tAoRKf1xpRts=
 github.com/go-encryptions/zfscrypt v0.0.0-20260623125925-033c4ad509ed/go.mod h1:PzuGFDE4GvnezFgPEbaBdKFaPFsDdxIF8DpaqgdsvUQ=
 github.com/go-fde/apfs v0.0.0-20260806070302-251df306364c h1:1f5Pp47OFAL8JiYVAvxo48SbXJPa47T75MAZ7yZyicI=
@@ -27,8 +27,8 @@ github.com/go-fde/clear v0.0.0-20260620062427-f7b9676e89b9 h1:xpWJI2zfxuTudLOHK3
 github.com/go-fde/clear v0.0.0-20260620062427-f7b9676e89b9/go.mod h1:kfRYnfX+JX3Tkm6eldHEk23qrRJbIpOsQTqd2LS+yBM=
 github.com/go-fde/fde v0.0.0-20260622113821-f4774d256221 h1:F89e1BZgGezpzvQErT9LJ0RLIuEHyoBGv2zEOqEbEdI=
 github.com/go-fde/fde v0.0.0-20260622113821-f4774d256221/go.mod h1:7P1iLrcVaIQoyvcTaSkdqigDH0VQYiMNOPGVYaLI2qc=
-github.com/go-fde/luks v0.0.0-20260904102035-a75bdafb522b h1:x3l6v6iJAtsB8CrRCEXpprFuRmv2wULFr6z+VaqKoh8=
-github.com/go-fde/luks v0.0.0-20260904102035-a75bdafb522b/go.mod h1:UWLWKOUBDUEQlKjBWl6OZM3jeWlgn90s/oWuGVQatW0=
+github.com/go-fde/luks v0.0.0-20260910174324-39809cf99006 h1:2QFNKReJQyDQhyczmP3j4/306tUxCilsTlrffGjlc5E=
+github.com/go-fde/luks v0.0.0-20260910174324-39809cf99006/go.mod h1:XGYHLeVWPx3DszFPeGT1uPiwVS62zxW6aD7LwvvHMYY=
 github.com/go-filesystems/apfs v0.1.0 h1:xuYtUhavWDAK7cq0+h4x2xh83szK0zmf/gBok1iFDlg=
 github.com/go-filesystems/apfs v0.1.0/go.mod h1:S3lJ8g64Km7ggJYkEHK3mrg0VQ9Vum2ogMY+J3zrdH0=
 github.com/go-filesystems/btrfs v0.1.0 h1:RmRRqqMkEWd+EkyWx37gqcFnNkG0TLDwl2k02ulLTiE=
