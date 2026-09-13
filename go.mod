@@ -3,7 +3,7 @@ module github.com/cloud-boot/uki
 go 1.26.4
 
 require (
-	github.com/cloud-boot/init v0.0.0-20260910124229-8374faa2622e
+	github.com/cloud-boot/init v0.0.0-20260912115905-2589b5a0f550
 	github.com/go-coff/peln v0.3.0
 	github.com/go-diskimages/diskimage v0.0.0-20260907182738-b838e1a2ccef
 	github.com/opencontainers/image-spec v1.1.1
@@ -16,12 +16,12 @@ require (
 	github.com/go-diskimages/dmg v0.0.0-20260907182204-944939792f30 // indirect
 	github.com/go-diskimages/qcow2 v0.1.1-0.20260615173836-3e5a0cea6d90 // indirect
 	github.com/go-encryptions/ccm v0.0.0-20260620055113-74db323be0b2 // indirect
-	github.com/go-encryptions/xts v0.0.0-20260903192301-101a3e472f94 // indirect
+	github.com/go-encryptions/xts v0.0.0-20260908181026-3089a42876e3 // indirect
 	github.com/go-encryptions/zfscrypt v0.0.0-20260623125925-033c4ad509ed // indirect
 	github.com/go-fde/apfs v0.0.0-20260806070302-251df306364c // indirect
 	github.com/go-fde/clear v0.0.0-20260620062427-f7b9676e89b9 // indirect
 	github.com/go-fde/fde v0.0.0-20260622113821-f4774d256221 // indirect
-	github.com/go-fde/luks v0.0.0-20260904102035-a75bdafb522b // indirect
+	github.com/go-fde/luks v0.0.0-20260910174324-39809cf99006 // indirect
 	github.com/go-filesystems/apfs v0.1.0 // indirect
 	github.com/go-filesystems/btrfs v0.1.0 // indirect
 	github.com/go-filesystems/exfat v0.1.0 // indirect
