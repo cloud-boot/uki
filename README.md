@@ -3,7 +3,7 @@
 # cloud-boot/uki
 
 Host-side toolchain that assembles **bootable UEFI ISOs** from the
-sibling [`cloud-boot/init`](../init) and [`cloud-boot/kernel`](../kernel)
+sibling [`cloud-boot/init`](https://github.com/cloud-boot/init) and [`cloud-boot/kernel`](https://github.com/cloud-boot/kernel)
 artifacts, and pushes those artifacts as OCI images for the init to
 pull at boot.
 
@@ -28,7 +28,7 @@ One CLI, three top-level cobra subcommands:
 | `scripts/test-qemu.sh`            | End-to-end smoke test driver |
 
 Shared infrastructure (`pkg/cpio`, `pkg/oci`) is imported from
-[`github.com/cloud-boot/init`](../init). The PE/COFF section appender
+[`github.com/cloud-boot/init`](https://github.com/cloud-boot/init). The PE/COFF section appender
 comes from [`github.com/go-coff/pe`](https://github.com/go-coff/pe).
 The label subcommand consumes
 [`github.com/go-diskimages/diskimage`](https://github.com/go-diskimages/diskimage).
@@ -120,7 +120,7 @@ arm64 (`AAVMF_VARS.fd`).)
 The multi-arch hybrid ISO assembler (one `boot.iso` carrying
 `\EFI\BOOT\BOOT{X64,AA64,LOONGARCH64,RISCV64}.EFI` under one ESP) and
 its 4-arch QEMU/EDK2 boot harness moved to a separate repo:
-[`cloud-boot/iso`](../iso). That code is shape-agnostic — it packs
+[`cloud-boot/iso`](https://github.com/cloud-boot/iso). That code is shape-agnostic — it packs
 N PE32+/EFI files and boots them, regardless of whether the input is
 a UKI (this repo's output) or a standalone EFI app (`cloud-boot/tamago-uefi`'s
 output). The new `cloud-boot-iso` CLI + `pkg/iso` + `pkg/multiarchboot`
@@ -128,4 +128,4 @@ library live there.
 
 ## License
 
-[BSD 3-Clause](../../go-coff/stub/LICENSE).
+[BSD 3-Clause](https://github.com/go-coff/stub/blob/main/LICENSE).
