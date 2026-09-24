@@ -3,9 +3,9 @@ module github.com/cloud-boot/uki
 go 1.26.4
 
 require (
-	github.com/cloud-boot/init v0.0.0-20260922130515-3b008773d0b6
+	github.com/cloud-boot/init v0.0.0-20260924085250-65ebc91cd86d
 	github.com/go-coff/peln v0.3.0
-	github.com/go-diskimages/diskimage v0.0.0-20260921135003-4f0b02f146a3
+	github.com/go-diskimages/diskimage v0.0.0-20260923205835-a3cfeb38717a
 	github.com/opencontainers/image-spec v1.1.1
 	github.com/spf13/cobra v1.10.2
 )
@@ -13,14 +13,14 @@ require (
 require (
 	github.com/anchore/go-lzo v0.1.0 // indirect
 	github.com/go-compressions/lzfse v0.3.0 // indirect
-	github.com/go-diskimages/dmg v0.0.0-20260907182204-944939792f30 // indirect
+	github.com/go-diskimages/dmg v0.0.0-20260921134959-95ee79cb02f5 // indirect
 	github.com/go-diskimages/qcow2 v0.1.1-0.20260830123235-0fc975dd1441 // indirect
 	github.com/go-encryptions/ccm v0.0.0-20260620055113-74db323be0b2 // indirect
 	github.com/go-encryptions/xts v0.0.0-20260911133109-312298263872 // indirect
 	github.com/go-encryptions/zfscrypt v0.0.0-20260623125925-033c4ad509ed // indirect
 	github.com/go-fde/apfs v0.0.0-20260912170739-6acb57fc9eb0 // indirect
 	github.com/go-fde/clear v0.0.0-20260830121017-65feb652d923 // indirect
-	github.com/go-fde/fde v0.0.0-20260914192132-fb2e27f8c817 // indirect
+	github.com/go-fde/fde v0.0.0-20260922180543-f8f25a0a3e74 // indirect
 	github.com/go-fde/luks v0.0.0-20260921110756-e50dea9f73fb // indirect
 	github.com/go-filesystems/apfs v0.1.0 // indirect
 	github.com/go-filesystems/btrfs v0.1.0 // indirect
