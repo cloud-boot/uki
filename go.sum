@@ -1,7 +1,7 @@
 github.com/anchore/go-lzo v0.1.0 h1:NgAacnzqPeGH49Ky19QKLBZEuFRqtTG9cdaucc3Vncs=
 github.com/anchore/go-lzo v0.1.0/go.mod h1:3kLx0bve2oN1iDwgM1U5zGku1Tfbdb0No5qp1eL1fIk=
-github.com/cloud-boot/init v0.0.0-20260924085250-65ebc91cd86d h1:8wPRh/3Wo5fUwWk2gkDTqgqEAN5vspGh7QsdclpewM4=
-github.com/cloud-boot/init v0.0.0-20260924085250-65ebc91cd86d/go.mod h1:4mSr7tj+WIpdg3pHEqGhPPAIjjdGjwwRGE7oAyl9jB8=
+github.com/cloud-boot/init v0.0.0-20260927133220-fa7b83b6c784 h1:Id+0/7pP09JYEuCIO9YRaFUPZeztM/c4X2lvCcftc40=
+github.com/cloud-boot/init v0.0.0-20260927133220-fa7b83b6c784/go.mod h1:9i6OwIyLpO3+p3ZTBpY1owkMjlkjMHnFLHq6pVhD2KI=
 github.com/cpuguy83/go-md2man/v2 v2.0.6/go.mod h1:oOW0eioCTA6cOiMLiUPZOpcVxMig6NIQQ7OS05n1F4g=
 github.com/go-bootloaders/grub v0.0.0-20260912202758-ef4cd69124f3 h1:QNij3b+98MyiwAcfBEQJNb327i1h1zOvj95+ZMujYUM=
 github.com/go-bootloaders/grub v0.0.0-20260912202758-ef4cd69124f3/go.mod h1:23Byue98Uqpk7l2oL0OrqJAGYPdyN0lWBJ5MXXunEto=
@@ -39,8 +39,8 @@ github.com/go-filesystems/exfat v0.3.0 h1:q4QsEG/gf91JlrPumHv84g4DKeTdIZe77aP5ZL
 github.com/go-filesystems/exfat v0.3.0/go.mod h1:OR/R6YN56XmtfXDq0+kFlWnupAEggpVHJ1X0M42xyJA=
 github.com/go-filesystems/ext4 v0.2.0 h1:eQGvpY9xyl9VyxojtHrM6NPGQH+RC0m7axgqv1Bj2uc=
 github.com/go-filesystems/ext4 v0.2.0/go.mod h1:apCj4bVXNWFPRvna7d+sBBnMJCYftk7C4OgfSRCcykQ=
-github.com/go-filesystems/fat32 v0.3.0 h1:lq2nFNXTI6wLOKtSA2SDQgbHNzgN9mMdElrcwsgwQrE=
-github.com/go-filesystems/fat32 v0.3.0/go.mod h1:twfQw/efVJW0ccGZoaxW3HXJG0RSM8xKsBUG1PIIWAQ=
+github.com/go-filesystems/fat32 v0.4.0 h1:wX4LGoTxdUAq9OJrsCcAg1lKtxTcuLaW3/Tk7Ape9Sc=
+github.com/go-filesystems/fat32 v0.4.0/go.mod h1:4x09jEjl85nLiRE1Ojm3eWjmefYV48JG1YjLStESl/k=
 github.com/go-filesystems/hfsplus v0.2.0 h1:1Frva1D3wOzgUPdx/vpBU+h+QU6n+Op1EMNOZmWsH2U=
 github.com/go-filesystems/hfsplus v0.2.0/go.mod h1:DMXqQLSl8Nk3XhpV7pmlzCzwmBXTsrCLMH02CG6Q3mE=
 github.com/go-filesystems/interface v0.3.0 h1:cV4+2mvW1eCPyde+KIDRaGuIPAcr2sDgKrxGuGQr98k=
@@ -63,8 +63,8 @@ github.com/go-volumes/safeio v0.0.0-20260831125406-d8f54b2890d4 h1:RKO58FmZvbvKh
 github.com/go-volumes/safeio v0.0.0-20260831125406-d8f54b2890d4/go.mod h1:QQdGwEUmPSdzD+OPq+ZcKso9ljssqgBXNk0/9z7moho=
 github.com/inconshreveable/mousetrap v1.1.0 h1:wN+x4NVGpMsO7ErUn/mUI3vEoE6Jt13X2s0bqwp9tc8=
 github.com/inconshreveable/mousetrap v1.1.0/go.mod h1:vpF70FUmC8bwa3OWnCshd2FqLfsEA9PFc4w1p2J65bw=
-github.com/klauspost/compress v1.20.0 h1:a3C1ke2ohxFymNlb2HWAHjDeKCI90scRskErZkR0ezA=
-github.com/klauspost/compress v1.20.0/go.mod h1:LUdAzn7YLVvxLpc7y3V1m40wESHTgc1422pwwBSKYuI=
+github.com/klauspost/compress v1.20.1 h1:T7kKElXUMXrUJ2E9QhQhxFtcK5rPyLdsGZvdbLMPdiQ=
+github.com/klauspost/compress v1.20.1/go.mod h1:LUdAzn7YLVvxLpc7y3V1m40wESHTgc1422pwwBSKYuI=
 github.com/opencontainers/go-digest v1.0.0 h1:apOUWs51W5PlhuyGyz9FCeeBIOUDA/6nW8Oi/yOhh5U=
 github.com/opencontainers/go-digest v1.0.0/go.mod h1:0JzlMkj0TRzQZfJkVvzbP0HBR3IKzErnv2BNG4W4MAM=
 github.com/opencontainers/image-spec v1.1.1 h1:y0fUlFfIZhPF1W537XOLg0/fcx6zcHCJwooC2xJA040=
