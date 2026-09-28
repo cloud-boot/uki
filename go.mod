@@ -5,15 +5,16 @@ go 1.26.4
 require (
 	github.com/cloud-boot/init v0.0.0-20260927133220-fa7b83b6c784
 	github.com/go-coff/peln v0.3.0
-	github.com/go-diskimages/diskimage v0.0.0-20260923205835-a3cfeb38717a
+	github.com/go-diskimages/diskimage v0.0.0-20260928134601-e56adab6a747
 	github.com/opencontainers/image-spec v1.1.1
 	github.com/spf13/cobra v1.10.2
 )
 
 require (
 	github.com/anchore/go-lzo v0.1.0 // indirect
+	github.com/go-compressions/adc v0.1.0 // indirect
 	github.com/go-compressions/lzfse v0.3.0 // indirect
-	github.com/go-diskimages/dmg v0.0.0-20260921134959-95ee79cb02f5 // indirect
+	github.com/go-diskimages/dmg v0.4.0 // indirect
 	github.com/go-diskimages/qcow2 v0.1.1-0.20260830123235-0fc975dd1441 // indirect
 	github.com/go-encryptions/ccm v0.0.0-20260620055113-74db323be0b2 // indirect
 	github.com/go-encryptions/xts v0.0.0-20260911133109-312298263872 // indirect
@@ -27,7 +28,7 @@ require (
 	github.com/go-filesystems/exfat v0.3.0 // indirect
 	github.com/go-filesystems/ext4 v0.2.0 // indirect
 	github.com/go-filesystems/fat32 v0.4.0 // indirect
-	github.com/go-filesystems/hfsplus v0.2.0 // indirect
+	github.com/go-filesystems/hfsplus v0.3.0 // indirect
 	github.com/go-filesystems/interface v0.3.0 // indirect
 	github.com/go-filesystems/ntfs v0.1.0 // indirect
 	github.com/go-filesystems/uefi v0.1.0 // indirect
