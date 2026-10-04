@@ -213,7 +213,7 @@ func TestBuild_BuildInitFails(t *testing.T) {
 		BuildInitFn = prevBI
 	})
 	err := Build(Opts{
-		Arch: ArchProfile{GoArch: "amd64", EFIName: "BOOTX64.EFI", StubName: "linuxx64.efi.stub"},
+		Arch:   ArchProfile{GoArch: "amd64", EFIName: "BOOTX64.EFI", StubName: "linuxx64.efi.stub"},
 		Kernel: filepath.Join(dir, "k"), Stub: stub, Image: "x:y", Out: filepath.Join(dir, "out.iso"),
 	})
 	if err == nil {
@@ -227,7 +227,7 @@ func TestBuild_CosignKeyMissing(t *testing.T) {
 	os.WriteFile(stub, minimalPE(), 0o644)
 	withStubs(t, func(string, ...string) error { return nil })
 	err := Build(Opts{
-		Arch: ArchProfile{GoArch: "amd64", EFIName: "BOOTX64.EFI", StubName: "linuxx64.efi.stub"},
+		Arch:      ArchProfile{GoArch: "amd64", EFIName: "BOOTX64.EFI", StubName: "linuxx64.efi.stub"},
 		Kernel:    filepath.Join(dir, "k"),
 		Stub:      stub,
 		Image:     "x:y",
@@ -249,7 +249,7 @@ func TestBuild_CosignKeyEmbedded(t *testing.T) {
 	os.WriteFile(kernel, []byte("K"), 0o644)
 	withStubs(t, func(string, ...string) error { return nil })
 	if err := Build(Opts{
-		Arch: ArchProfile{GoArch: "amd64", EFIName: "BOOTX64.EFI", StubName: "linuxx64.efi.stub"},
+		Arch:   ArchProfile{GoArch: "amd64", EFIName: "BOOTX64.EFI", StubName: "linuxx64.efi.stub"},
 		Kernel: kernel, Stub: stub, Image: "x:y", Out: filepath.Join(dir, "out.iso"),
 		CosignKey: keyPath, PlanRef: "p:t", Target: "primary",
 	}); err != nil {
@@ -265,7 +265,7 @@ func TestBuild_MkdirAllFails(t *testing.T) {
 	os.WriteFile(stub, minimalPE(), 0o644)
 	withStubs(t, func(string, ...string) error { return nil })
 	err := Build(Opts{
-		Arch: ArchProfile{GoArch: "amd64", EFIName: "BOOTX64.EFI", StubName: "linuxx64.efi.stub"},
+		Arch:   ArchProfile{GoArch: "amd64", EFIName: "BOOTX64.EFI", StubName: "linuxx64.efi.stub"},
 		Kernel: filepath.Join(dir, "k"), Stub: stub, Image: "x:y",
 		Out: filepath.Join(dir, "out.iso"), WorkDir: filepath.Join(clash, "wd"),
 	})
@@ -282,7 +282,7 @@ func TestBuild_UKIBuildFails(t *testing.T) {
 	os.WriteFile(kernel, []byte("K"), 0o644)
 	withStubs(t, func(string, ...string) error { return nil })
 	err := Build(Opts{
-		Arch: ArchProfile{GoArch: "amd64", EFIName: "BOOTX64.EFI", StubName: "linuxx64.efi.stub"},
+		Arch:   ArchProfile{GoArch: "amd64", EFIName: "BOOTX64.EFI", StubName: "linuxx64.efi.stub"},
 		Kernel: kernel, Stub: stub, Image: "x:y", Out: filepath.Join(dir, "out.iso"),
 	})
 	if err == nil {
@@ -303,7 +303,7 @@ func TestBuild_ESPFails(t *testing.T) {
 		return nil
 	})
 	err := Build(Opts{
-		Arch: ArchProfile{GoArch: "amd64", EFIName: "BOOTX64.EFI", StubName: "linuxx64.efi.stub"},
+		Arch:   ArchProfile{GoArch: "amd64", EFIName: "BOOTX64.EFI", StubName: "linuxx64.efi.stub"},
 		Kernel: kernel, Stub: stub, Image: "x:y", Out: filepath.Join(dir, "out.iso"),
 	})
 	if err == nil {
@@ -324,7 +324,7 @@ func TestBuild_ISOFails(t *testing.T) {
 		return nil
 	})
 	err := Build(Opts{
-		Arch: ArchProfile{GoArch: "amd64", EFIName: "BOOTX64.EFI", StubName: "linuxx64.efi.stub"},
+		Arch:   ArchProfile{GoArch: "amd64", EFIName: "BOOTX64.EFI", StubName: "linuxx64.efi.stub"},
 		Kernel: kernel, Stub: stub, Image: "x:y", Out: filepath.Join(dir, "out.iso"),
 	})
 	if err == nil {

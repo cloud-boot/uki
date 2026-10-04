@@ -160,7 +160,7 @@ func pushFile(c *oci.Client, ref *oci.Ref, path, mediaType, title string) (ocisp
 		Digest:    d,
 		Size:      int64(len(data)),
 		Annotations: map[string]string{
-			ocispec.AnnotationTitle:    title,
+			ocispec.AnnotationTitle:     title,
 			"cloudboot.source.basename": filepath.Base(path),
 		},
 	}, nil

@@ -34,7 +34,7 @@ func (l *PlatformList) Set(v string) error {
 	*l = append(*l, PlatformSpec{Platform: kv[0], Ref: kv[1]})
 	return nil
 }
-func (l *PlatformList) Type() string         { return "platform=ref" }
+func (l *PlatformList) Type() string          { return "platform=ref" }
 func (l *PlatformList) Append(v string) error { return l.Set(v) }
 func (l *PlatformList) Replace(vals []string) error {
 	*l = (*l)[:0]

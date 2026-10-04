@@ -150,8 +150,8 @@ func TestRun_End2End(t *testing.T) {
 		t.Fatalf("index not stored at /v2/r/manifests/6.6; saw %v", keys(reg.Manifests))
 	}
 	var idx struct {
-		MediaType string                    `json:"mediaType"`
-		Manifests []ocispec.Descriptor      `json:"manifests"`
+		MediaType string               `json:"mediaType"`
+		Manifests []ocispec.Descriptor `json:"manifests"`
 	}
 	if err := json.Unmarshal(idxBody, &idx); err != nil {
 		t.Fatal(err)
