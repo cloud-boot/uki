@@ -37,9 +37,9 @@ type Opts struct {
 // Cmd returns the `cloud-boot build` cobra subcommand.
 func Cmd() *cobra.Command {
 	var (
-		arch      string
-		kernel    string
-		stub      string
+		arch             string
+		kernel           string
+		stub             string
 		cmdline          string
 		image            string
 		planRef          string
