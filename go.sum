@@ -1,7 +1,7 @@
 github.com/anchore/go-lzo v0.1.1 h1:IwL/fvkdtlIrYIXck6WxZ3nb8WjjHziYYmGxlooyOnM=
 github.com/anchore/go-lzo v0.1.1/go.mod h1:3kLx0bve2oN1iDwgM1U5zGku1Tfbdb0No5qp1eL1fIk=
-github.com/cloud-boot/init v0.0.0-20261006144422-5d7dd1bca07c h1:2tUbsCw+VKtEIOMaw5W33B0ooZl2o84xZK/NgKhTUc4=
-github.com/cloud-boot/init v0.0.0-20261006144422-5d7dd1bca07c/go.mod h1:MfixRvFjT+PSiCv23s+rGyq2ZRJyd6odg/FZni06Y1I=
+github.com/cloud-boot/init v0.0.0-20261010210720-ab6bea6442dd h1:g8woZ7ToYNc1aK2o/L8PNP3ymioLUUZZxZqZzFM1S7c=
+github.com/cloud-boot/init v0.0.0-20261010210720-ab6bea6442dd/go.mod h1:+93hTtj8DpS3281WwTzfW6xQ8qpEOjp17tibBkM/+vM=
 github.com/cpuguy83/go-md2man/v2 v2.0.6/go.mod h1:oOW0eioCTA6cOiMLiUPZOpcVxMig6NIQQ7OS05n1F4g=
 github.com/go-bootloaders/grub v0.0.0-20261004230249-46cea86c36be h1:7LJoEYqd605lDQkeGsrGuoJi/k7JCjw0SEPgGQOQKBI=
 github.com/go-bootloaders/grub v0.0.0-20261004230249-46cea86c36be/go.mod h1:2gPyxG1i79ZiKa2QlGKmnDslAW01bavv7TvCrJWeqko=
@@ -11,8 +11,8 @@ github.com/go-compressions/adc v0.1.0 h1:+4W5XL0JbDAuuD3YcbAnMRtyQM35kK9pGAAzELe
 github.com/go-compressions/adc v0.1.0/go.mod h1:kPyMMlq7usBJh/vfGw8Z0cR852+dqZYYvBM6lpX4og0=
 github.com/go-compressions/lzfse v0.4.1 h1:Bbh4ypKEKF1whNEUvHlelYs7q4nAhTUQwE48CZoXnF0=
 github.com/go-compressions/lzfse v0.4.1/go.mod h1:gC6f2ks/Hqf/1NUL2n1UCNr05HY0quziSzbKO/+yLow=
-github.com/go-diskimages/diskimage v0.0.0-20261006131914-e55697aa54db h1:uM2jV2dFq+Yq7qgDGwpq5OZT2QSnnRfRgHLfmfCguqc=
-github.com/go-diskimages/diskimage v0.0.0-20261006131914-e55697aa54db/go.mod h1:vkokrhfEmRXsInIYlQKOk9ripkU3vBN9WuJkoUDTbcQ=
+github.com/go-diskimages/diskimage v0.0.0-20261011163504-3deab9251c22 h1:CU6TJscl4HFuBh0acJvvpUr3A7X2WvknT+UG6sWJwP8=
+github.com/go-diskimages/diskimage v0.0.0-20261011163504-3deab9251c22/go.mod h1:vkokrhfEmRXsInIYlQKOk9ripkU3vBN9WuJkoUDTbcQ=
 github.com/go-diskimages/dmg v0.5.0 h1:yRS7D0H6zqRWDQQYFTvNN26Oxt+GZqZo8xDikYTBmmI=
 github.com/go-diskimages/dmg v0.5.0/go.mod h1:fnEmvUsMazEvxuHqF9hzLtTrvJ6BIQLgNrhNL1GRFNw=
 github.com/go-diskimages/qcow2 v0.3.0 h1:qV2PVIyB4hstznP83b7Wf4Br4KjRdzZdA5rYjIh/Tj8=

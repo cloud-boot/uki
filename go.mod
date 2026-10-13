@@ -3,9 +3,9 @@ module github.com/cloud-boot/uki
 go 1.27.2
 
 require (
-	github.com/cloud-boot/init v0.0.0-20261006144422-5d7dd1bca07c
+	github.com/cloud-boot/init v0.0.0-20261010210720-ab6bea6442dd
 	github.com/go-coff/peln v0.5.0
-	github.com/go-diskimages/diskimage v0.0.0-20261006131914-e55697aa54db
+	github.com/go-diskimages/diskimage v0.0.0-20261011163504-3deab9251c22
 	github.com/opencontainers/image-spec v1.1.1
 	github.com/spf13/cobra v1.10.2
 )
