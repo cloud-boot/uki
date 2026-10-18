@@ -5,7 +5,7 @@ go 1.27.2
 require (
 	github.com/cloud-boot/init v0.0.0-20261010210720-ab6bea6442dd
 	github.com/go-coff/peln v0.5.0
-	github.com/go-diskimages/diskimage v0.0.0-20261015112810-80017c02d250
+	github.com/go-diskimages/diskimage v0.0.0-20261017104320-b8a1a08b5e06
 	github.com/opencontainers/image-spec v1.1.1
 	github.com/spf13/cobra v1.10.2
 )
@@ -21,8 +21,8 @@ require (
 	github.com/go-encryptions/zfscrypt v0.0.0-20260927173133-ff7dd33bb415 // indirect
 	github.com/go-fde/apfs v0.0.0-20261013201543-56b159ff7a3a // indirect
 	github.com/go-fde/clear v0.0.0-20261010194107-54d03c90d379 // indirect
-	github.com/go-fde/fde v0.0.0-20261012220943-39d1a5cc03b3 // indirect
-	github.com/go-fde/luks v0.0.0-20261010194133-68ee356acf37 // indirect
+	github.com/go-fde/fde v0.0.0-20261015181651-a5e0b588a1db // indirect
+	github.com/go-fde/luks v0.0.0-20261013201635-bade5e568280 // indirect
 	github.com/go-filesystems/apfs v0.3.0 // indirect
 	github.com/go-filesystems/btrfs v0.3.0 // indirect
 	github.com/go-filesystems/exfat v0.4.0 // indirect
