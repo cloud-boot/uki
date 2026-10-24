@@ -11,8 +11,8 @@ github.com/go-compressions/adc v0.1.0 h1:+4W5XL0JbDAuuD3YcbAnMRtyQM35kK9pGAAzELe
 github.com/go-compressions/adc v0.1.0/go.mod h1:kPyMMlq7usBJh/vfGw8Z0cR852+dqZYYvBM6lpX4og0=
 github.com/go-compressions/lzfse v0.4.1 h1:Bbh4ypKEKF1whNEUvHlelYs7q4nAhTUQwE48CZoXnF0=
 github.com/go-compressions/lzfse v0.4.1/go.mod h1:gC6f2ks/Hqf/1NUL2n1UCNr05HY0quziSzbKO/+yLow=
-github.com/go-diskimages/diskimage v0.0.0-20261017104320-b8a1a08b5e06 h1:FYB9zjaVQAxTwvGht7rXZUg2dRx1VJv0eCHVjqtqpd8=
-github.com/go-diskimages/diskimage v0.0.0-20261017104320-b8a1a08b5e06/go.mod h1:D8uLexPO5wS2kNzGIV7xITwn3De1VheJnuyei3XxNdk=
+github.com/go-diskimages/diskimage v0.0.0-20261024084313-cd6e8fad868b h1:UNlfTgJpPN1igSeB1mJTUeGjojgAkZ64I5re1jZK5f4=
+github.com/go-diskimages/diskimage v0.0.0-20261024084313-cd6e8fad868b/go.mod h1:D8uLexPO5wS2kNzGIV7xITwn3De1VheJnuyei3XxNdk=
 github.com/go-diskimages/dmg v0.5.0 h1:yRS7D0H6zqRWDQQYFTvNN26Oxt+GZqZo8xDikYTBmmI=
 github.com/go-diskimages/dmg v0.5.0/go.mod h1:fnEmvUsMazEvxuHqF9hzLtTrvJ6BIQLgNrhNL1GRFNw=
 github.com/go-diskimages/qcow2 v0.3.0 h1:qV2PVIyB4hstznP83b7Wf4Br4KjRdzZdA5rYjIh/Tj8=
