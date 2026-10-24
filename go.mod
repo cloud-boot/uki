@@ -5,7 +5,7 @@ go 1.27.2
 require (
 	github.com/cloud-boot/init v0.0.0-20261010210720-ab6bea6442dd
 	github.com/go-coff/peln v0.5.0
-	github.com/go-diskimages/diskimage v0.0.0-20261017104320-b8a1a08b5e06
+	github.com/go-diskimages/diskimage v0.0.0-20261024084313-cd6e8fad868b
 	github.com/opencontainers/image-spec v1.1.1
 	github.com/spf13/cobra v1.10.2
 )
