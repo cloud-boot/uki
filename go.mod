@@ -3,7 +3,7 @@ module github.com/cloud-boot/uki
 go 1.27.2
 
 require (
-	github.com/cloud-boot/init v0.0.0-20261010210720-ab6bea6442dd
+	github.com/cloud-boot/init v0.0.0-20261030144939-77abe7974d95
 	github.com/go-coff/peln v0.5.0
 	github.com/go-diskimages/diskimage v0.0.0-20261024084313-cd6e8fad868b
 	github.com/opencontainers/image-spec v1.1.1
@@ -22,7 +22,7 @@ require (
 	github.com/go-fde/apfs v0.0.0-20261013201543-56b159ff7a3a // indirect
 	github.com/go-fde/clear v0.0.0-20261010194107-54d03c90d379 // indirect
 	github.com/go-fde/fde v0.0.0-20261015181651-a5e0b588a1db // indirect
-	github.com/go-fde/luks v0.0.0-20261013201635-bade5e568280 // indirect
+	github.com/go-fde/luks v0.2.0 // indirect
 	github.com/go-filesystems/apfs v0.3.0 // indirect
 	github.com/go-filesystems/btrfs v0.3.0 // indirect
 	github.com/go-filesystems/exfat v0.4.0 // indirect
@@ -35,13 +35,13 @@ require (
 	github.com/go-filesystems/xfs v0.3.0 // indirect
 	github.com/go-filesystems/zfs v0.3.0 // indirect
 	github.com/go-volumes/gpt v0.3.0 // indirect
-	github.com/go-volumes/safeio v0.0.0-20260831125406-d8f54b2890d4 // indirect
+	github.com/go-volumes/safeio v0.0.0-20261011024942-5635ea21db3b // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/klauspost/compress v1.20.1 // indirect
+	github.com/klauspost/compress v1.20.3 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/spf13/pflag v1.0.9 // indirect
 	golang.org/x/crypto v0.58.0 // indirect
-	golang.org/x/net v0.60.0 // indirect
+	golang.org/x/net v0.62.0 // indirect
 	golang.org/x/sys v0.49.0 // indirect
 	golang.org/x/text v0.43.0 // indirect
 )
