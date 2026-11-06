@@ -5,7 +5,7 @@ go 1.27.2
 require (
 	github.com/cloud-boot/init v0.0.0-20261102174749-b25b90c5a516
 	github.com/go-coff/peln v0.5.0
-	github.com/go-diskimages/diskimage v0.0.0-20261031233513-69ab7d02e4ff
+	github.com/go-diskimages/diskimage v0.0.0-20261105143857-67d401a491b4
 	github.com/opencontainers/image-spec v1.1.1
 	github.com/spf13/cobra v1.10.2
 )
@@ -13,25 +13,25 @@ require (
 require (
 	github.com/anchore/go-lzo v0.1.1 // indirect
 	github.com/go-compressions/adc v0.1.0 // indirect
-	github.com/go-compressions/lzfse v0.4.1 // indirect
+	github.com/go-compressions/lzfse v0.6.0 // indirect
 	github.com/go-diskimages/dmg v0.5.0 // indirect
 	github.com/go-diskimages/qcow2 v0.3.0 // indirect
 	github.com/go-encryptions/ccm v0.0.0-20261024084551-8f94ab359209 // indirect
-	github.com/go-encryptions/xts v0.0.0-20261012185738-047ae186ad23 // indirect
+	github.com/go-encryptions/xts v0.1.0 // indirect
 	github.com/go-encryptions/zfscrypt v0.0.0-20261025134207-eb78902b14ac // indirect
-	github.com/go-fde/apfs v0.0.0-20261013201543-56b159ff7a3a // indirect
-	github.com/go-fde/clear v0.0.0-20261010194107-54d03c90d379 // indirect
-	github.com/go-fde/fde v0.0.0-20261015181651-a5e0b588a1db // indirect
+	github.com/go-fde/apfs v0.3.0 // indirect
+	github.com/go-fde/clear v0.0.0-20261031234011-a9b61d9ff704 // indirect
+	github.com/go-fde/fde v0.0.0-20261102224727-3033b5b06b0c // indirect
 	github.com/go-fde/luks v0.2.0 // indirect
-	github.com/go-filesystems/apfs v0.3.0 // indirect
+	github.com/go-filesystems/apfs v0.5.0 // indirect
 	github.com/go-filesystems/btrfs v0.4.0 // indirect
-	github.com/go-filesystems/exfat v0.4.0 // indirect
+	github.com/go-filesystems/exfat v0.4.1 // indirect
 	github.com/go-filesystems/ext4 v0.4.0 // indirect
-	github.com/go-filesystems/fat32 v0.5.0 // indirect
-	github.com/go-filesystems/hfsplus v0.4.0 // indirect
+	github.com/go-filesystems/fat32 v0.10.0 // indirect
+	github.com/go-filesystems/hfsplus v0.5.0 // indirect
 	github.com/go-filesystems/interface v0.5.0 // indirect
-	github.com/go-filesystems/ntfs v0.2.0 // indirect
-	github.com/go-filesystems/uefi v0.3.0 // indirect
+	github.com/go-filesystems/ntfs v0.3.0 // indirect
+	github.com/go-filesystems/uefi v0.4.0 // indirect
 	github.com/go-filesystems/xfs v0.4.0 // indirect
 	github.com/go-filesystems/zfs v0.4.0 // indirect
 	github.com/go-volumes/gpt v0.3.0 // indirect
