@@ -5,8 +5,8 @@ github.com/cloud-boot/init v0.0.0-20261111155223-86898e16b873/go.mod h1:qgPIg8Yb
 github.com/cpuguy83/go-md2man/v2 v2.0.6/go.mod h1:oOW0eioCTA6cOiMLiUPZOpcVxMig6NIQQ7OS05n1F4g=
 github.com/go-bootloaders/grub v0.0.0-20261103230955-2165fafb7144 h1:wwjTuC19Kzeu0y4WSH7/hbmF8irivvkJW3qIaRKTroA=
 github.com/go-bootloaders/grub v0.0.0-20261103230955-2165fafb7144/go.mod h1:C6Z1lU1G6fBd1xiT/PQdZsMrN1F1HJ/4wxKVyw1xuxE=
-github.com/go-coff/peln v0.5.0 h1:SySMVxGKG0g9SlyYAjuvlcpoBQI7IN/HfOQnThgD4W0=
-github.com/go-coff/peln v0.5.0/go.mod h1:WVNL39VvUhQCcl+riug6K2Eg3rlffFmsyrHVMLUqdcs=
+github.com/go-coff/peln v0.6.0 h1:YfzX+khTs8Sgb6dHhH2jewSkcsPZXIVylAhKzNoBWrs=
+github.com/go-coff/peln v0.6.0/go.mod h1:WVNL39VvUhQCcl+riug6K2Eg3rlffFmsyrHVMLUqdcs=
 github.com/go-compressions/adc v0.1.0 h1:+4W5XL0JbDAuuD3YcbAnMRtyQM35kK9pGAAzELe+tm4=
 github.com/go-compressions/adc v0.1.0/go.mod h1:kPyMMlq7usBJh/vfGw8Z0cR852+dqZYYvBM6lpX4og0=
 github.com/go-compressions/lzfse v0.6.0 h1:LXo+b8rphmNHldheGCYUTJ/HPcBCwN+dFY96PzOPouc=
